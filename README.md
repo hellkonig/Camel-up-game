@@ -1,5 +1,7 @@
-# Camel-up-game
-Python program of camel up game (2014 German Spiel des Jahres)
+# Camel Up Game
+
+Deterministic Camel Up game engine with interfaces for agents and
+Gymnasium-style RL environments.
 
 ## Requirements
 
@@ -14,10 +16,10 @@ Install development dependencies:
 uv sync --extra dev
 ```
 
-Run the current CLI prototype:
+Run the CLI:
 
 ```bash
-uv run python main.py
+uv run camel-up
 ```
 
 Run checks:
@@ -29,6 +31,14 @@ uv run ruff format --check .
 uv run python -m mypy
 ```
 
-The initial lint and type-check configuration covers the test baseline. The
-legacy prototype modules should be brought under stricter checks as they are
-refactored into the future package structure.
+## Project Direction
+
+The project will move toward a `src/` layout:
+
+- `src/camel_up/core`: game state, rules, scoring, legal actions
+- `src/camel_up/cli`: command-line interface
+- `src/camel_up/agents`: random, heuristic, search, and learning agents
+- `src/camel_up/envs`: Gymnasium-style RL wrappers
+
+Core rules should be deterministic, testable, and independent from CLI, agent,
+or training code.

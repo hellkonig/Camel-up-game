@@ -1,3 +1,4 @@
+from camel_up.cli.main import main
 from components import Board, Camel
 
 
@@ -14,3 +15,7 @@ def test_camel_can_be_constructed_with_position() -> None:
     assert camel.color == "red"
     assert camel.block_id == 0
     assert camel.stack_id == 0
+
+
+def test_cli_entry_point_is_importable() -> None:
+    assert callable(main)
