@@ -1,31 +1,23 @@
 # AGENTS.md - Camel Up Game
 
-## Project Overview
+## Goal
 
-This repository is a Python prototype of the Camel Up board game. The long-term
-goal is to turn it into a reliable game engine and training environment for AI
-agents.
+Build a reliable, deterministic Camel Up game engine with clean interfaces for
+future agents and Gymnasium-style RL environments. Prioritize correctness and
+testability before training code.
 
-The current codebase is intentionally small and not yet production quality:
-
-- `components.py` contains mutable `Board` and `Camel` classes.
-- `main.py` contains the executable game loop and console visualization.
-- There is no package structure, test suite, dependency file, formatter, type
-  checker, or ML environment yet.
-
-When changing this repo, prioritize correctness, determinism, and testability
-before adding ML training code.
-
-## Current Commands
-
-```bash
-uv run python main.py
-```
+## Commands
 
 Install development dependencies:
 
 ```bash
 uv sync --extra dev
+```
+
+Run the CLI:
+
+```bash
+uv run camel-up
 ```
 
 Run checks:
@@ -37,129 +29,55 @@ uv run ruff format --check .
 uv run python -m mypy
 ```
 
-The initial lint and type-check configuration covers the test baseline. Expand
-the checked source paths as the legacy prototype code is refactored into the
-future package structure.
+Run a single test:
 
-## Intended Direction
-
-The preferred architecture is to separate the project into these concerns over
-time:
-
-```text
-camel_up/
-  core/       # Game state, rules, movement, scoring, legal actions
-  agents/     # Random, heuristic, Monte Carlo, and learning agents
-  envs/       # Gymnasium-style RL environment wrappers
-  cli/        # Human-playable command-line interface
-tests/
+```bash
+uv run python -m pytest tests/path/to/test_file.py::test_name
 ```
 
-Do not mix these concerns in new code. In particular:
+## Architecture
 
-- Core game logic should not call `print()` or `input()`.
-- Randomness should be injectable or seedable.
-- ML code should depend on a stable game engine API, not on CLI behavior.
-- Agent code should use legal-action APIs rather than duplicating rule logic.
+Use a `src/` layout as the project grows:
 
-## Engineering Conventions
+- `src/camel_up/core`: game state, rules, scoring, legal actions
+- `src/camel_up/cli`: command-line interface
+- `src/camel_up/agents`: random, heuristic, search, and learning agents
+- `src/camel_up/envs`: Gymnasium-style RL wrappers
 
-- Use Python 3 type hints for new or substantially edited code.
+Core logic must not depend on CLI, agents, or RL environment code. CLI, agent,
+and RL code must use stable core APIs rather than duplicating rules.
+
+## Code Standards
+
+- Follow PEP 8 and Google Python Style Guide where they do not conflict.
+- Use type hints for new or substantially edited code.
+- Use built-in generics such as `list[str]` and `dict[str, int]`.
+- Use `X | None` instead of `Optional[X]`.
 - Prefer dataclasses or small explicit classes for game state.
-- Use `snake_case` for functions and variables, `PascalCase` for classes.
-- Keep functions small and rule-focused.
-- Avoid hidden global state.
-- Avoid in-place mutation unless it is contained inside a clear engine method.
-- Use explicit domain names such as `camel_color`, `space_index`, `stack_index`,
-  `leg_dice`, and `spectator_tiles`.
+- Keep randomness injectable or seedable.
+- Keep functions small, deterministic, and rule-focused.
 - Keep comments concise and only where they clarify non-obvious game rules.
 
-## Game Engine Standards
+## Game And RL Rules
 
-Game logic must be deterministic when given the same seed and action sequence.
+- Preserve camel stack ordering semantics.
+- Treat crazy camels, grey die behavior, spectator tiles, leg resets, game end,
+  legal actions, observation encoding, and rewards as high-risk areas.
+- Add or update tests when changing rules.
+- Do not add training code until core rules are deterministic and tested.
+- Expose legal action masks for agents and RL environments.
 
-When implementing or refactoring rules:
+## Dependencies
 
-- Add or update tests for the behavior.
-- Preserve stack ordering semantics.
-- Treat crazy camels, grey die behavior, spectator tiles, leg resets, and game
-  end conditions as high-risk rule areas.
-- Prefer returning structured results over printing messages.
-- Validate illegal actions with clear exceptions or legal-action masks.
-
-Known current issues to keep in mind:
-
-- `main.py` helper functions depend on globals such as `board`, `camels`, and
-  `crazy_camel_set`.
-- `components.py` uses global `random` directly.
-- `place_spectator_tile()` refers to `self.block`, which does not exist.
-- The crazy-camel-alone check in `main.py` has incorrect boolean logic.
-- There are no tests protecting current behavior.
-
-## ML Engineering Standards
-
-Do not start training work until the core rules are testable and deterministic.
-
-For future ML work:
-
-- Prefer a Gymnasium-compatible environment API.
-- Expose legal action masks.
-- Separate observation encoding from game state.
-- Keep reward calculation explicit and documented.
-- Track seeds, config, checkpoints, and evaluation results.
-- Start with random and heuristic baselines before reinforcement learning.
-- Evaluate agents against fixed seeds and fixed opponent policies.
-
-## Testing Expectations
-
-When tests are introduced, cover at least:
-
-- Initial camel placement.
-- Dice availability and leg reset.
-- Camel stack movement.
-- Crazy camel movement.
-- Spectator tile placement constraints.
-- Winner detection.
-- Deterministic replay with a fixed seed.
-- Legal action generation for agents.
-
-Run the relevant tests before finishing changes. If tests or tooling do not yet
-exist, say that explicitly in the final response.
-
-## Dependency Policy
-
-- Avoid adding dependencies for simple core game logic.
+- Avoid dependencies for simple core game logic.
 - Ask before adding ML-heavy dependencies such as PyTorch, Gymnasium,
   Stable-Baselines3, Ray/RLlib, Weights & Biases, or MLflow.
-- If a dependency is added, add proper project metadata first, preferably through
-  `pyproject.toml`.
+- Add dependency metadata through `pyproject.toml`.
 
-## Git And Generated Files
+## Git
 
-- Use branch names in the form `feat/<name>`, `fix/<name>`, or
-  `chore/<name>`.
-- Use commit messages in the form `<type>: <description>`, for example
-  `feat: add legal action API`.
-- Use PR titles in the same form as commit messages, for example
-  `chore: set up project tooling`.
-- Do not commit secrets, local `.env` files, checkpoints, datasets, or large
-  generated experiment outputs.
-- Do not edit `__pycache__` or other generated Python artifacts.
-- Keep commits focused: rule changes, tooling changes, and ML experiments should
-  be separate where practical.
-
-## Agent Workflow
-
-Before making code changes:
-
-- Inspect the current files rather than assuming the future package structure
-  already exists.
-- Keep edits scoped to the user's request.
-- Do not rewrite the whole game unless the task explicitly asks for a refactor.
-- If changing game behavior, explain the rule assumption being implemented.
-
-Before finishing:
-
-- Run available validation commands.
-- Report what was changed.
-- Report any validation that could not be run because tooling is missing.
+- Branches: `feat/<name>`, `fix/<name>`, or `chore/<name>`.
+- Commits and PR titles: `<type>: <description>`.
+- Do not commit secrets, `.env` files, virtualenvs, caches, checkpoints,
+  datasets, or large generated outputs.
+- Keep commits focused.
