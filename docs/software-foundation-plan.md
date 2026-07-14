@@ -22,6 +22,34 @@ environments, or training code.
   use without duplicating game rules.
 - Avoid heavyweight ML dependencies until the engine is stable.
 
+## Immediate Next Step: CI Baseline
+
+Status: `Todo`
+
+Goal: Add a GitHub Actions workflow before larger refactors so every pull
+request has the same quality gate as local development.
+
+Tasks:
+
+- [ ] Create `.github/workflows/ci.yml`.
+- [ ] Run CI on pull requests and pushes to `main`.
+- [ ] Install dependencies with `uv sync --extra dev`.
+- [ ] Run the documented checks:
+
+```bash
+uv run python -m pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run python -m mypy
+```
+
+Acceptance criteria:
+
+- A pull request shows automated CI status on GitHub.
+- The CI workflow runs the same commands documented in `README.md` and
+  `AGENTS.md`.
+- The workflow is CI only; no deployment or release automation is needed yet.
+
 ## Phase 1: Package Structure
 
 Status: `Todo`
@@ -286,8 +314,10 @@ Acceptance criteria:
 
 ## First Milestone
 
-The recommended first milestone is intentionally small:
+The recommended first milestone is intentionally small and starts with CI:
 
+- [ ] Add `.github/workflows/ci.yml`.
+- [ ] Verify the current documented checks pass in CI.
 - [ ] Create `src/camel_up/engine`.
 - [ ] Move `Camel` and `Board` into package modules.
 - [ ] Update imports and CLI.
