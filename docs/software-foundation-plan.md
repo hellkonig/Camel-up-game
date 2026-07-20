@@ -24,17 +24,17 @@ environments, or training code.
 
 ## Immediate Next Step: CI Baseline
 
-Status: `Todo`
+Status: `Done`
 
 Goal: Add a GitHub Actions workflow before larger refactors so every pull
 request has the same quality gate as local development.
 
 Tasks:
 
-- [ ] Create `.github/workflows/ci.yml`.
-- [ ] Run CI on pull requests and pushes to `main`.
-- [ ] Install dependencies with `uv sync --extra dev`.
-- [ ] Run the documented checks:
+- [x] Create `.github/workflows/ci.yml`.
+- [x] Run CI on pull requests and pushes to `main`.
+- [x] Install dependencies with `uv sync --extra dev`.
+- [x] Run the documented checks:
 
 ```bash
 uv run python -m pytest
