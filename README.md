@@ -31,6 +31,18 @@ uv run ruff format --check .
 uv run python -m mypy
 ```
 
+Install pre-commit hooks:
+
+```bash
+uv run pre-commit install
+```
+
+Run pre-commit checks manually:
+
+```bash
+uv run pre-commit run --all-files
+```
+
 ## Project Direction
 
 The project will move toward a `src/` layout:

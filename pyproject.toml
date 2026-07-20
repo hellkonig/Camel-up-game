@@ -20,6 +20,7 @@ camel-up = "camel_up.cli.main:main"
 [project.optional-dependencies]
 dev = [
   "mypy>=1.10",
+  "pre-commit>=3.7",
   "pytest>=8.0",
   "ruff>=0.5",
 ]
