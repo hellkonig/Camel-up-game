@@ -22,7 +22,7 @@ environments, or training code.
   use without duplicating game rules.
 - Avoid heavyweight ML dependencies until the engine is stable.
 
-## Immediate Next Step: CI Baseline
+## Completed Foundation Step: CI Baseline
 
 Status: `Done`
 
@@ -50,7 +50,7 @@ Acceptance criteria:
   `AGENTS.md`.
 - The workflow is CI only; no deployment or release automation is needed yet.
 
-## Phase 1: Package Structure
+## Phase 1: Package Structure (Immediate Next Step)
 
 Status: `Todo`
 
@@ -160,6 +160,118 @@ Acceptance criteria:
   a catch-all.
 - Root modules are either removed or clearly marked as temporary compatibility
   shims.
+
+### Recommended Pull Request Sequence
+
+Implement the package foundation as three sequential pull requests. Each pull
+request should be based on the merged pull request before it, keep the CLI
+runnable, and pass all documented checks.
+
+#### PR 1: `refactor: add engine state foundation`
+
+Suggested branch: `chore/engine-state-foundation`
+
+Goal: Establish the engine package and typed state model without changing game
+behavior.
+
+Tasks:
+
+- [ ] Create `src/camel_up/engine/__init__.py` and
+      `src/camel_up/engine/state.py`. Add other semantic modules only when they
+      gain real responsibilities.
+- [ ] Convert `Camel` and `Board` into typed dataclasses in `engine.state`.
+- [ ] Introduce a typed `GameState` that owns the board, camels, dice inventory,
+      and other state needed to continue a game.
+- [ ] Document stack ordering and state mutation expectations in docstrings and
+      tests.
+- [ ] Re-export only the state types intended for use outside `engine.state`.
+- [ ] Keep `components.py` as a temporary compatibility shim that re-exports
+      the package types.
+- [ ] Update tests to import state types through `camel_up.engine`.
+
+Acceptance criteria:
+
+- Existing construction and board-placement behavior is preserved.
+- `GameState` provides an explicit home for state currently held in module
+  globals.
+- `uv run camel-up` and all documented checks still pass.
+
+Review focus:
+
+- State ownership, dataclass invariants, type design, and compatibility with the
+  prototype.
+
+#### PR 2: `refactor: extract deterministic dice and movement rules`
+
+Suggested branch: `chore/deterministic-dice-movement`
+
+Goal: Move the first high-risk rules behind deterministic, testable engine
+functions.
+
+Tasks:
+
+- [ ] Add `engine.dice` for dice inventory, die selection, grey die handling,
+      and leg dice reset.
+- [ ] Pass or store a seeded `random.Random` instance instead of using global
+      random functions.
+- [ ] Add `engine.movement` for selecting a camel and every camel above it,
+      placing stacks, updating positions, forward movement, backward movement,
+      and finish-line handling.
+- [ ] Keep engine functions free of terminal input and output.
+- [ ] Add concrete movement tests for stack ordering and moving a camel with
+      camels above it.
+- [ ] Add deterministic dice tests that compare repeated rolls from the same
+      seed, including grey die behavior.
+- [ ] Retain compatibility wrappers only where the CLI still needs them.
+
+Acceptance criteria:
+
+- The same seed and dice state produce the same sequence of rolls.
+- Moving a camel preserves the order of the carried stack.
+- Crazy camel backward movement has an explicit tested ordering rule.
+- All documented checks pass.
+
+Review focus:
+
+- Randomness injection, grey die behavior, backward movement, and camel stack
+  semantics.
+
+#### PR 3: `refactor: migrate CLI to engine API`
+
+Suggested branch: `chore/engine-cli-cutover`
+
+Goal: Complete the package cutover so the CLI is a thin consumer of engine
+behavior and production code is covered by project tooling.
+
+Tasks:
+
+- [ ] Add the smallest public engine façade needed by the CLI.
+- [ ] Move gameplay orchestration out of root-level `main.py`.
+- [ ] Move rendering, prompts, and printing into `camel_up.cli`.
+- [ ] Replace the CLI's `runpy` bridge with direct calls to engine APIs.
+- [ ] Add or update CLI smoke tests and verify `uv run camel-up` still starts.
+- [ ] Remove `components.py`, root-level `main.py`, and
+      `py-modules = ["components", "main"]` after all imports have migrated.
+- [ ] Configure Ruff to check `src` and `tests`.
+- [ ] Configure MyPy to check `src/camel_up` and `tests` with incremental
+      strictness.
+- [ ] Update this plan and README examples to reflect the final package paths.
+
+Acceptance criteria:
+
+- CLI code does not implement or duplicate dice or movement rules.
+- Engine modules contain no `print()`, `input()`, or CLI rendering.
+- Tests and application code import through `camel_up`, not root modules.
+- The CLI and all documented checks pass without compatibility shims.
+
+Review focus:
+
+- Package boundaries, public API size, CLI behavior, and removal of legacy
+  imports.
+
+The three pull requests do not include spectator tiles, betting, scoring, legal
+action masks, RL environments, or training code. Those remain in their
+corresponding later phases.
 
 ## Phase 2: Tooling Baseline
 
@@ -294,13 +406,13 @@ Acceptance criteria:
 
 ## Phase 7: CI And Project Hygiene
 
-Status: `Todo`
+Status: `Doing`
 
 Goal: Make quality checks automatic and standardize contribution flow.
 
 Tasks:
 
-- [ ] Add GitHub Actions for tests, Ruff, formatting, and MyPy.
+- [x] Add GitHub Actions for tests, Ruff, formatting, and MyPy.
 - [ ] Add or update `CONTRIBUTING.md`.
 - [ ] Keep README setup and command instructions current.
 - [ ] Add architecture notes once the engine API stabilizes.
@@ -316,8 +428,8 @@ Acceptance criteria:
 
 The recommended first milestone is intentionally small and starts with CI:
 
-- [ ] Add `.github/workflows/ci.yml`.
-- [ ] Verify the current documented checks pass in CI.
+- [x] Add `.github/workflows/ci.yml`.
+- [x] Verify the current documented checks pass in CI.
 - [ ] Create `src/camel_up/engine`.
 - [ ] Move `Camel` and `Board` into package modules.
 - [ ] Update imports and CLI.
@@ -325,4 +437,5 @@ The recommended first milestone is intentionally small and starts with CI:
 - [ ] Add focused tests for stack movement and deterministic dice rolling.
 
 This milestone establishes the package foundation without attempting to
-redesign the full game in one pass.
+redesign the full game in one pass. Complete the remaining items through the
+three sequential pull requests described in Phase 1.
