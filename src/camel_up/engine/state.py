@@ -2,43 +2,39 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Literal, TypeAlias
+from dataclasses import dataclass
+from enum import Enum
+from types import MappingProxyType
+from typing import Final, Literal
 
-CamelId: TypeAlias = Literal[
-    "red",
-    "blue",
-    "green",
-    "yellow",
-    "purple",
-    "white",
-    "black",
-]
-DieId: TypeAlias = Literal[
-    "red",
-    "blue",
-    "green",
-    "yellow",
-    "purple",
-    "grey",
-]
 
-CAMEL_ORDER: tuple[CamelId, ...] = (
-    "red",
-    "blue",
-    "green",
-    "yellow",
-    "purple",
-    "white",
-    "black",
-)
-DIE_ORDER: tuple[DieId, ...] = (
-    "red",
-    "blue",
-    "green",
-    "yellow",
-    "purple",
-    "grey",
+class CamelId(str, Enum):
+    """Stable identities for the five racing and two crazy camels."""
+
+    RED = "red"
+    BLUE = "blue"
+    GREEN = "green"
+    YELLOW = "yellow"
+    PURPLE = "purple"
+    WHITE = "white"
+    BLACK = "black"
+
+
+class DieId(str, Enum):
+    """Stable identities for the dice available during a leg."""
+
+    RED = "red"
+    BLUE = "blue"
+    GREEN = "green"
+    YELLOW = "yellow"
+    PURPLE = "purple"
+    GREY = "grey"
+
+
+CAMEL_ORDER: Final = tuple(CamelId)
+DIE_ORDER: Final = tuple(DieId)
+_CAMEL_INDEX: Final = MappingProxyType(
+    {camel: index for index, camel in enumerate(CAMEL_ORDER)}
 )
 
 
@@ -87,11 +83,6 @@ class SpectatorTile:
             raise ValueError("effect must be -1 or 1")
 
 
-def _initial_camel_positions() -> tuple[CamelPosition, ...]:
-    """Return one unplaced coordinate for each camel."""
-    return tuple(CamelPosition() for _ in CAMEL_ORDER)
-
-
 @dataclass(frozen=True, slots=True)
 class BoardState:
     """Immutable track state with camel coordinates and spectator tiles.
@@ -101,25 +92,39 @@ class BoardState:
     beginning at zero.
     """
 
-    track_length: int = 17
-    camel_positions: tuple[CamelPosition, ...] = field(
-        default_factory=_initial_camel_positions
-    )
+    track_length: int
+    camel_positions: tuple[CamelPosition, ...]
     spectator_tiles: tuple[SpectatorTile, ...] = ()
 
+    @classmethod
+    def empty(cls, track_length: int = 17) -> BoardState:
+        """Create the deterministic board state before initial dice rolls.
+
+        Starting camel positions depend on random die outcomes. The seeded
+        setup transition will place them; state construction itself performs
+        no random work.
+        """
+        return cls(
+            track_length=track_length,
+            camel_positions=tuple(CamelPosition() for _ in CAMEL_ORDER),
+        )
+
     def __post_init__(self) -> None:
-        """Validate coordinates and canonical tile ordering."""
+        """Validate every newly constructed initial or mid-game snapshot."""
         if self.track_length <= 0:
             raise ValueError("track_length must be positive")
         if len(self.camel_positions) != len(CAMEL_ORDER):
             raise ValueError(f"camel_positions must contain {len(CAMEL_ORDER)} entries")
 
+        self._validate_camel_positions()
+        self._validate_spectator_tiles()
+
+    def _validate_camel_positions(self) -> None:
+        """Validate track coordinates and stack invariants."""
         levels_by_space: dict[int, list[int]] = {}
         for position in self.camel_positions:
-            if not position.is_placed:
+            if position.space is None or position.level is None:
                 continue
-            assert position.space is not None
-            assert position.level is not None
             if position.space >= self.track_length:
                 raise ValueError("camel space must be within the track")
             levels_by_space.setdefault(position.space, []).append(position.level)
@@ -128,6 +133,8 @@ class BoardState:
             if sorted(levels) != list(range(len(levels))):
                 raise ValueError("stack levels must be unique and contiguous from zero")
 
+    def _validate_spectator_tiles(self) -> None:
+        """Validate tiles for initial and populated mid-game snapshots."""
         player_ids = [tile.player_id for tile in self.spectator_tiles]
         if player_ids != sorted(player_ids) or len(player_ids) != len(set(player_ids)):
             raise ValueError("spectator tiles must be unique and ordered by player_id")
@@ -141,18 +148,23 @@ class BoardState:
 
 @dataclass(frozen=True, slots=True)
 class GameState:
-    """Complete public state boundary for deterministic engine transitions.
+    """Public state foundation for deterministic engine transitions.
 
     The state contains no random generator and exposes no mutation methods.
     Rule functions receive a state and return a replacement state atomically,
     which makes states safe to compare, hash, replay, and store in search trees.
     """
 
-    board: BoardState = field(default_factory=BoardState)
+    board: BoardState
     remaining_dice: tuple[DieId, ...] = DIE_ORDER
     current_player: int = 0
     leg_number: int = 1
     terminal: bool = False
+
+    @classmethod
+    def pre_setup(cls, track_length: int = 17) -> GameState:
+        """Create a state awaiting seeded initial camel placement."""
+        return cls(board=BoardState.empty(track_length))
 
     def __post_init__(self) -> None:
         """Validate canonical dice order and scalar state fields."""
@@ -171,7 +183,7 @@ class GameState:
 
 def position_of(state: GameState, camel: CamelId) -> CamelPosition:
     """Return the authoritative coordinate for ``camel``."""
-    return state.board.camel_positions[CAMEL_ORDER.index(camel)]
+    return state.board.camel_positions[_CAMEL_INDEX[camel]]
 
 
 def stack_at(state: GameState, space: int) -> tuple[CamelId, ...]:
@@ -181,8 +193,7 @@ def stack_at(state: GameState, space: int) -> tuple[CamelId, ...]:
 
     stack: list[tuple[int, CamelId]] = []
     for camel, position in zip(CAMEL_ORDER, state.board.camel_positions):
-        if position.space == space:
-            assert position.level is not None
+        if position.space == space and position.level is not None:
             stack.append((position.level, camel))
     return tuple(camel for _, camel in sorted(stack))
 
@@ -190,8 +201,6 @@ def stack_at(state: GameState, space: int) -> tuple[CamelId, ...]:
 def carried_camels(state: GameState, camel: CamelId) -> tuple[CamelId, ...]:
     """Return ``camel`` and every camel above it, bottom to top."""
     position = position_of(state, camel)
-    if not position.is_placed:
+    if position.space is None or position.level is None:
         raise ValueError("camel must be placed before it can carry a stack")
-    assert position.space is not None
-    assert position.level is not None
     return stack_at(state, position.space)[position.level :]

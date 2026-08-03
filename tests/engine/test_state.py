@@ -6,7 +6,9 @@ from camel_up.engine import (
     CAMEL_ORDER,
     DIE_ORDER,
     BoardState,
+    CamelId,
     CamelPosition,
+    DieId,
     GameState,
     SpectatorTile,
     carried_camels,
@@ -15,8 +17,13 @@ from camel_up.engine import (
 )
 
 
-def test_new_game_has_one_unplaced_position_per_camel() -> None:
-    state = GameState()
+def test_identifier_orders_are_derived_from_enum_declarations() -> None:
+    assert tuple(CamelId) == CAMEL_ORDER
+    assert tuple(DieId) == DIE_ORDER
+
+
+def test_pre_setup_game_has_one_unplaced_position_per_camel() -> None:
+    state = GameState.pre_setup()
 
     assert state.board.track_length == 17
     assert len(state.board.camel_positions) == len(CAMEL_ORDER)
@@ -34,16 +41,23 @@ def test_coordinates_are_the_only_source_for_derived_stack_order() -> None:
         CamelPosition(space=15, level=0),
         CamelPosition(space=16, level=0),
     )
-    state = GameState(board=BoardState(camel_positions=positions))
+    state = GameState(board=BoardState(track_length=17, camel_positions=positions))
 
-    assert stack_at(state, 4) == ("red", "green", "blue")
-    assert position_of(state, "green") == CamelPosition(space=4, level=1)
-    assert carried_camels(state, "green") == ("green", "blue")
+    assert stack_at(state, 4) == (
+        CamelId.RED,
+        CamelId.GREEN,
+        CamelId.BLUE,
+    )
+    assert position_of(state, CamelId.GREEN) == CamelPosition(space=4, level=1)
+    assert carried_camels(state, CamelId.GREEN) == (
+        CamelId.GREEN,
+        CamelId.BLUE,
+    )
 
 
 def test_unplaced_camel_cannot_carry_a_stack() -> None:
     with pytest.raises(ValueError, match="must be placed"):
-        carried_camels(GameState(), "red")
+        carried_camels(GameState.pre_setup(), CamelId.RED)
 
 
 @pytest.mark.parametrize(
@@ -67,7 +81,7 @@ def test_board_rejects_duplicate_or_non_contiguous_stack_levels(
     )
 
     with pytest.raises(ValueError, match="unique and contiguous"):
-        BoardState(camel_positions=padded_positions)
+        BoardState(track_length=17, camel_positions=padded_positions)
 
 
 def test_position_requires_both_coordinate_fields() -> None:
@@ -82,19 +96,53 @@ def test_spectator_tiles_have_canonical_player_order() -> None:
     )
 
     with pytest.raises(ValueError, match="ordered by player_id"):
-        BoardState(spectator_tiles=tiles)
+        BoardState(
+            track_length=17,
+            camel_positions=BoardState.empty().camel_positions,
+            spectator_tiles=tiles,
+        )
+
+
+def test_board_validates_populated_mid_game_tile_snapshots() -> None:
+    board = replace(
+        BoardState.empty(),
+        spectator_tiles=(
+            SpectatorTile(player_id=0, space=3, effect=-1),
+            SpectatorTile(player_id=1, space=5, effect=1),
+        ),
+    )
+
+    assert [tile.space for tile in board.spectator_tiles] == [3, 5]
+
+    with pytest.raises(ValueError, match="cannot share a space"):
+        replace(
+            board,
+            spectator_tiles=(
+                SpectatorTile(player_id=0, space=3, effect=-1),
+                SpectatorTile(player_id=1, space=3, effect=1),
+            ),
+        )
 
 
 def test_remaining_dice_use_canonical_order() -> None:
     with pytest.raises(ValueError, match="canonical order"):
-        GameState(remaining_dice=("blue", "red"))
+        GameState(
+            board=BoardState.empty(),
+            remaining_dice=(DieId.BLUE, DieId.RED),
+        )
 
 
 def test_game_states_are_hashable_and_replaceable_without_mutation() -> None:
-    state = GameState()
+    state = GameState.pre_setup()
     next_state = replace(
         state,
-        remaining_dice=("blue", "green", "yellow", "purple", "grey"),
+        remaining_dice=(
+            DieId.BLUE,
+            DieId.GREEN,
+            DieId.YELLOW,
+            DieId.PURPLE,
+            DieId.GREY,
+        ),
     )
 
     transpositions = {state: "root", next_state: "child"}
