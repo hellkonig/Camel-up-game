@@ -106,8 +106,9 @@ tests/
 
 Module responsibilities:
 
-- `engine.state`: Domain dataclasses and state containers such as `Camel`,
-  `Board`, `GameState`, `DieRoll`, `SpectatorTile`, and player state.
+- `engine.state`: Immutable domain dataclasses and state containers such as
+  `CamelPosition`, `BoardState`, `GameState`, `DieRoll`, `SpectatorTile`, and
+  player state.
 - `engine.dice`: Dice inventory, dice selection, grey die handling, and seeded
   roll behavior.
 - `engine.movement`: Camel stack selection, placement, forward movement,
@@ -138,7 +139,8 @@ Tasks:
 
 - [ ] Create `src/camel_up/engine` with semantic modules rather than one large
       `board.py` or `rules.py`.
-- [ ] Move `Camel` and `Board` out of root-level `components.py`.
+- [ ] Replace the mutable `Camel` and `Board` state model with canonical engine
+      coordinates, retaining prototype adapters only while the CLI needs them.
 - [ ] Introduce `GameState` before adding more rule behavior.
 - [ ] Put movement rules in `engine.movement`, dice rules in `engine.dice`,
       tile rules in `engine.tiles`, betting rules in `engine.betting`, and
@@ -179,21 +181,26 @@ Tasks:
 - [ ] Create `src/camel_up/engine/__init__.py` and
       `src/camel_up/engine/state.py`. Add other semantic modules only when they
       gain real responsibilities.
-- [ ] Convert `Camel` and `Board` into typed dataclasses in `engine.state`.
+- [ ] Represent camel placement once through immutable, typed coordinates in
+      `engine.state`; derive board stacks rather than storing both forms.
 - [ ] Introduce a typed `GameState` that owns the board, camels, dice inventory,
       and other state needed to continue a game.
 - [ ] Document stack ordering and state mutation expectations in docstrings and
       tests.
 - [ ] Re-export only the state types intended for use outside `engine.state`.
-- [ ] Keep `components.py` as a temporary compatibility shim that re-exports
-      the package types.
+- [ ] Keep `components.py` as a temporary compatibility shim backed by an
+      isolated prototype adapter; do not expose mutable adapters from
+      `camel_up.engine`.
 - [ ] Update tests to import state types through `camel_up.engine`.
 
 Acceptance criteria:
 
-- Existing construction and board-placement behavior is preserved.
+- Existing construction and board-placement behavior is preserved through the
+  temporary CLI adapter.
 - `GameState` provides an explicit home for state currently held in module
   globals.
+- Engine states are immutable and hashable for safe branching and
+  transposition-table use.
 - `uv run camel-up` and all documented checks still pass.
 
 Review focus:
