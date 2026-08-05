@@ -181,26 +181,26 @@ class GameState:
             raise ValueError("leg_number must be positive")
 
 
-def position_of(state: GameState, camel: CamelId) -> CamelPosition:
+def position_of(board: BoardState, camel: CamelId) -> CamelPosition:
     """Return the authoritative coordinate for ``camel``."""
-    return state.board.camel_positions[_CAMEL_INDEX[camel]]
+    return board.camel_positions[_CAMEL_INDEX[camel]]
 
 
-def stack_at(state: GameState, space: int) -> tuple[CamelId, ...]:
+def stack_at(board: BoardState, space: int) -> tuple[CamelId, ...]:
     """Return the stack at ``space`` ordered from bottom to top."""
-    if not 0 <= space < state.board.track_length:
+    if not 0 <= space < board.track_length:
         raise ValueError("space must be within the track")
 
     stack: list[tuple[int, CamelId]] = []
-    for camel, position in zip(CAMEL_ORDER, state.board.camel_positions):
+    for camel, position in zip(CAMEL_ORDER, board.camel_positions):
         if position.space == space and position.level is not None:
             stack.append((position.level, camel))
     return tuple(camel for _, camel in sorted(stack))
 
 
-def carried_camels(state: GameState, camel: CamelId) -> tuple[CamelId, ...]:
+def carried_camels(board: BoardState, camel: CamelId) -> tuple[CamelId, ...]:
     """Return ``camel`` and every camel above it, bottom to top."""
-    position = position_of(state, camel)
+    position = position_of(board, camel)
     if position.space is None or position.level is None:
         raise ValueError("camel must be placed before it can carry a stack")
-    return stack_at(state, position.space)[position.level :]
+    return stack_at(board, position.space)[position.level :]

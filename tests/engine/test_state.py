@@ -41,15 +41,15 @@ def test_coordinates_are_the_only_source_for_derived_stack_order() -> None:
         CamelPosition(space=15, level=0),
         CamelPosition(space=16, level=0),
     )
-    state = GameState(board=BoardState(track_length=17, camel_positions=positions))
+    board = BoardState(track_length=17, camel_positions=positions)
 
-    assert stack_at(state, 4) == (
+    assert stack_at(board, 4) == (
         CamelId.RED,
         CamelId.GREEN,
         CamelId.BLUE,
     )
-    assert position_of(state, CamelId.GREEN) == CamelPosition(space=4, level=1)
-    assert carried_camels(state, CamelId.GREEN) == (
+    assert position_of(board, CamelId.GREEN) == CamelPosition(space=4, level=1)
+    assert carried_camels(board, CamelId.GREEN) == (
         CamelId.GREEN,
         CamelId.BLUE,
     )
@@ -57,7 +57,7 @@ def test_coordinates_are_the_only_source_for_derived_stack_order() -> None:
 
 def test_unplaced_camel_cannot_carry_a_stack() -> None:
     with pytest.raises(ValueError, match="must be placed"):
-        carried_camels(GameState.pre_setup(), CamelId.RED)
+        carried_camels(BoardState.empty(), CamelId.RED)
 
 
 @pytest.mark.parametrize(
