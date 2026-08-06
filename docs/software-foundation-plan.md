@@ -52,7 +52,7 @@ Acceptance criteria:
 
 ## Phase 1: Package Structure (Immediate Next Step)
 
-Status: `Todo`
+Status: `Doing`
 
 Goal: Move from prototype root modules to a clean `src/` package layout with a
 semantic `engine` package. `engine` represents the deterministic Camel Up game
@@ -106,8 +106,9 @@ tests/
 
 Module responsibilities:
 
-- `engine.state`: Domain dataclasses and state containers such as `Camel`,
-  `Board`, `GameState`, `DieRoll`, `SpectatorTile`, and player state.
+- `engine.state`: Immutable domain dataclasses and state containers such as
+  `CamelPosition`, `BoardState`, `GameState`, `DieRoll`, `SpectatorTile`, and
+  player state.
 - `engine.dice`: Dice inventory, dice selection, grey die handling, and seeded
   roll behavior.
 - `engine.movement`: Camel stack selection, placement, forward movement,
@@ -136,14 +137,15 @@ Shared-code policy:
 
 Tasks:
 
-- [ ] Create `src/camel_up/engine` with semantic modules rather than one large
+- [x] Create `src/camel_up/engine` with semantic modules rather than one large
       `board.py` or `rules.py`.
-- [ ] Move `Camel` and `Board` out of root-level `components.py`.
-- [ ] Introduce `GameState` before adding more rule behavior.
+- [x] Replace the mutable `Camel` and `Board` state model with canonical engine
+      coordinates, retaining prototype adapters only while the CLI needs them.
+- [x] Introduce `GameState` before adding more rule behavior.
 - [ ] Put movement rules in `engine.movement`, dice rules in `engine.dice`,
       tile rules in `engine.tiles`, betting rules in `engine.betting`, and
       scoring rules in `engine.scoring`.
-- [ ] Re-export only stable public functions and dataclasses from
+- [x] Re-export only stable public functions and dataclasses from
       `camel_up.engine` or `camel_up.engine.api`.
 - [ ] Move gameplay orchestration out of root-level `main.py`.
 - [ ] Update CLI to call package APIs directly instead of using `runpy`.
@@ -169,6 +171,8 @@ runnable, and pass all documented checks.
 
 #### PR 1: `refactor: add engine state foundation`
 
+Status: `Done`
+
 Suggested branch: `chore/engine-state-foundation`
 
 Goal: Establish the engine package and typed state model without changing game
@@ -176,25 +180,39 @@ behavior.
 
 Tasks:
 
-- [ ] Create `src/camel_up/engine/__init__.py` and
+- [x] Create `src/camel_up/engine/__init__.py` and
       `src/camel_up/engine/state.py`. Add other semantic modules only when they
       gain real responsibilities.
-- [ ] Convert `Camel` and `Board` into typed dataclasses in `engine.state`.
-- [ ] Introduce a typed `GameState` that owns the board, camels, dice inventory,
-      and other state needed to continue a game.
-- [ ] Document stack ordering and state mutation expectations in docstrings and
+- [x] Represent camel placement once through immutable, typed coordinates in
+      `engine.state`; derive board stacks rather than storing both forms.
+- [x] Introduce a typed `GameState` foundation that owns the board and leg dice
+      inventory. Add player and betting state in focused follow-up pull
+      requests.
+- [x] Document stack ordering and state mutation expectations in docstrings and
       tests.
-- [ ] Re-export only the state types intended for use outside `engine.state`.
-- [ ] Keep `components.py` as a temporary compatibility shim that re-exports
-      the package types.
-- [ ] Update tests to import state types through `camel_up.engine`.
+- [x] Re-export only the state types intended for use outside `engine.state`.
+- [x] Keep `components.py` as a temporary compatibility shim backed by an
+      isolated prototype adapter; do not expose mutable adapters from
+      `camel_up.engine`.
+- [x] Update tests to import state types through `camel_up.engine`.
+
+Setup-state contract:
+
+- `GameState.pre_setup()` contains seven unplaced camels.
+- The deterministic setup transition introduced with dice rules will calculate
+  all starting positions and then construct one complete `BoardState`.
+- Individual setup rolls may be emitted as replay or UI events, but they are not
+  player decision points or intermediate engine states for agents and search.
 
 Acceptance criteria:
 
-- Existing construction and board-placement behavior is preserved.
-- `GameState` provides an explicit home for state currently held in module
+- [x] Existing construction and board-placement behavior is preserved through the
+  temporary CLI adapter.
+- [x] `GameState` provides an explicit home for state currently held in module
   globals.
-- `uv run camel-up` and all documented checks still pass.
+- [x] Engine states are immutable and hashable for safe branching and
+  transposition-table use.
+- [x] `uv run camel-up` and all documented checks still pass.
 
 Review focus:
 
@@ -269,9 +287,10 @@ Review focus:
 - Package boundaries, public API size, CLI behavior, and removal of legacy
   imports.
 
-The three pull requests do not include spectator tiles, betting, scoring, legal
-action masks, RL environments, or training code. Those remain in their
-corresponding later phases.
+The three pull requests do not include spectator tile actions or movement
+effects, betting, scoring, legal action masks, RL environments, or training
+code. PR 1 defines the typed spectator-tile state and board-level placement
+invariants only; the remaining behavior stays in its corresponding later phase.
 
 ## Phase 2: Tooling Baseline
 
@@ -307,8 +326,8 @@ game state and rule APIs.
 
 Tasks:
 
-- [ ] Represent engine state with dataclasses such as `Camel`, `Board`,
-      `GameState`, `DieRoll`, and `SpectatorTile`.
+- [ ] Represent engine state with dataclasses such as `CamelPosition`,
+      `BoardState`, `GameState`, `DieRoll`, `SpectatorTile`, and player state.
 - [ ] Inject or store `random.Random` instead of using global `random`.
 - [ ] Remove printing and user input from engine logic.
 - [ ] Make dice rolling deterministic under a fixed seed.
@@ -430,8 +449,9 @@ The recommended first milestone is intentionally small and starts with CI:
 
 - [x] Add `.github/workflows/ci.yml`.
 - [x] Verify the current documented checks pass in CI.
-- [ ] Create `src/camel_up/engine`.
-- [ ] Move `Camel` and `Board` into package modules.
+- [x] Create `src/camel_up/engine`.
+- [x] Add canonical `CamelPosition`, `BoardState`, and `GameState` types while
+      isolating the temporary mutable CLI adapter.
 - [ ] Update imports and CLI.
 - [ ] Expand Ruff and MyPy to check `src`.
 - [ ] Add focused tests for stack movement and deterministic dice rolling.

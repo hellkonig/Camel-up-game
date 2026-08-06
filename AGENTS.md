@@ -39,13 +39,13 @@ uv run python -m pytest tests/path/to/test_file.py::test_name
 
 Use a `src/` layout as the project grows:
 
-- `src/camel_up/core`: game state, rules, scoring, legal actions
+- `src/camel_up/engine`: game state, rules, scoring, legal actions
 - `src/camel_up/cli`: command-line interface
 - `src/camel_up/agents`: random, heuristic, search, and learning agents
 - `src/camel_up/envs`: Gymnasium-style RL wrappers
 
-Core logic must not depend on CLI, agents, or RL environment code. CLI, agent,
-and RL code must use stable core APIs rather than duplicating rules.
+Engine logic must not depend on CLI, agents, or RL environment code. CLI,
+agent, and RL code must use stable engine APIs rather than duplicating rules.
 
 ## Code Standards
 
@@ -61,6 +61,8 @@ and RL code must use stable core APIs rather than duplicating rules.
 ## Game And RL Rules
 
 - Preserve camel stack ordering semantics.
+- Treat initial camel placement as an atomic transition: valid board snapshots
+  contain either no placed camels before setup or all camels after setup.
 - Treat crazy camels, grey die behavior, spectator tiles, leg resets, game end,
   legal actions, observation encoding, and rewards as high-risk areas.
 - Add or update tests when changing rules.

@@ -26,10 +26,9 @@ dev = [
 ]
 
 [tool.setuptools]
+package-dir = { camel_up = "src/camel_up" }
+packages = ["camel_up", "camel_up.cli", "camel_up.engine"]
 py-modules = ["components", "main"]
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

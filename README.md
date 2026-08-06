@@ -43,14 +43,17 @@ Run pre-commit checks manually:
 uv run pre-commit run --all-files
 ```
 
-## Project Direction
+## Project Structure
 
-The project will move toward a `src/` layout:
+The project uses a `src/` layout as it moves from the prototype CLI to the
+deterministic engine:
 
-- `src/camel_up/core`: game state, rules, scoring, legal actions
+- `src/camel_up/engine`: game state, rules, scoring, and legal actions
 - `src/camel_up/cli`: command-line interface
 - `src/camel_up/agents`: random, heuristic, search, and learning agents
 - `src/camel_up/envs`: Gymnasium-style RL wrappers
 
-Core rules should be deterministic, testable, and independent from CLI, agent,
-or training code.
+Engine rules are deterministic, testable, and independent from CLI, agent, or
+training code. Initial camel placement is modeled as one atomic transition from
+an all-unplaced pre-setup state to a complete board; setup rolls do not create
+player decision states for agents or search.
