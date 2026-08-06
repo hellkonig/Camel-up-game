@@ -17,31 +17,53 @@ from camel_up.engine import (
 )
 
 
-def test_identifier_orders_are_derived_from_enum_declarations() -> None:
-    assert tuple(CamelId) == CAMEL_ORDER
-    assert tuple(DieId) == DIE_ORDER
+def _fully_placed_positions() -> tuple[CamelPosition, ...]:
+    return tuple(
+        CamelPosition(space=10 + index, level=0) for index in range(len(CAMEL_ORDER))
+    )
+
+
+def test_identifier_orders_are_stable_engine_contracts() -> None:
+    expected_camel_order = (
+        CamelId.RED,
+        CamelId.BLUE,
+        CamelId.GREEN,
+        CamelId.YELLOW,
+        CamelId.PURPLE,
+        CamelId.WHITE,
+        CamelId.BLACK,
+    )
+    expected_die_order = (
+        DieId.RED,
+        DieId.BLUE,
+        DieId.GREEN,
+        DieId.YELLOW,
+        DieId.PURPLE,
+        DieId.GREY,
+    )
+
+    assert tuple(CAMEL_ORDER) == expected_camel_order
+    assert tuple(DIE_ORDER) == expected_die_order
 
 
 def test_pre_setup_game_has_one_unplaced_position_per_camel() -> None:
     state = GameState.pre_setup()
+    expected_positions = tuple(CamelPosition() for _ in CAMEL_ORDER)
 
     assert state.board.track_length == 17
-    assert len(state.board.camel_positions) == len(CAMEL_ORDER)
-    assert all(not position.is_placed for position in state.board.camel_positions)
+    assert state.board.camel_positions == expected_positions
     assert state.remaining_dice == DIE_ORDER
 
 
 def test_coordinates_are_the_only_source_for_derived_stack_order() -> None:
-    positions = (
+    positions = list(_fully_placed_positions())
+    positions[:4] = (
         CamelPosition(space=4, level=0),
         CamelPosition(space=4, level=2),
         CamelPosition(space=4, level=1),
         CamelPosition(space=7, level=0),
-        CamelPosition(),
-        CamelPosition(space=15, level=0),
-        CamelPosition(space=16, level=0),
     )
-    board = BoardState(track_length=17, camel_positions=positions)
+    board = BoardState(track_length=17, camel_positions=tuple(positions))
 
     assert stack_at(board, 4) == (
         CamelId.RED,
@@ -76,12 +98,19 @@ def test_unplaced_camel_cannot_carry_a_stack() -> None:
 def test_board_rejects_duplicate_or_non_contiguous_stack_levels(
     positions: tuple[CamelPosition, CamelPosition],
 ) -> None:
-    padded_positions = positions + tuple(
-        CamelPosition() for _ in range(len(CAMEL_ORDER) - len(positions))
-    )
+    all_positions = list(_fully_placed_positions())
+    all_positions[:2] = positions
 
     with pytest.raises(ValueError, match="unique and contiguous"):
-        BoardState(track_length=17, camel_positions=padded_positions)
+        BoardState(track_length=17, camel_positions=tuple(all_positions))
+
+
+def test_board_rejects_partial_camel_setup() -> None:
+    positions = list(BoardState.empty().camel_positions)
+    positions[0] = CamelPosition(space=2, level=0)
+
+    with pytest.raises(ValueError, match="either all unplaced or all placed"):
+        BoardState(track_length=17, camel_positions=tuple(positions))
 
 
 def test_position_requires_both_coordinate_fields() -> None:
@@ -98,14 +127,15 @@ def test_spectator_tiles_have_canonical_player_order() -> None:
     with pytest.raises(ValueError, match="ordered by player_id"):
         BoardState(
             track_length=17,
-            camel_positions=BoardState.empty().camel_positions,
+            camel_positions=_fully_placed_positions(),
             spectator_tiles=tiles,
         )
 
 
-def test_board_validates_populated_mid_game_tile_snapshots() -> None:
-    board = replace(
-        BoardState.empty(),
+def test_board_accepts_populated_mid_game_tile_snapshot() -> None:
+    board = BoardState(
+        track_length=17,
+        camel_positions=_fully_placed_positions(),
         spectator_tiles=(
             SpectatorTile(player_id=0, space=3, effect=-1),
             SpectatorTile(player_id=1, space=5, effect=1),
@@ -114,14 +144,57 @@ def test_board_validates_populated_mid_game_tile_snapshots() -> None:
 
     assert [tile.space for tile in board.spectator_tiles] == [3, 5]
 
+
+def test_board_rejects_spectator_tiles_sharing_a_space() -> None:
     with pytest.raises(ValueError, match="cannot share a space"):
-        replace(
-            board,
+        BoardState(
+            track_length=17,
+            camel_positions=_fully_placed_positions(),
             spectator_tiles=(
                 SpectatorTile(player_id=0, space=3, effect=-1),
                 SpectatorTile(player_id=1, space=3, effect=1),
             ),
         )
+
+
+def test_board_rejects_spectator_tile_on_track_space_one() -> None:
+    with pytest.raises(ValueError, match="track space 1"):
+        BoardState(
+            track_length=17,
+            camel_positions=_fully_placed_positions(),
+            spectator_tiles=(SpectatorTile(player_id=0, space=0, effect=1),),
+        )
+
+
+def test_board_rejects_spectator_tile_on_a_camel_space() -> None:
+    with pytest.raises(ValueError, match="space with camels"):
+        BoardState(
+            track_length=17,
+            camel_positions=_fully_placed_positions(),
+            spectator_tiles=(SpectatorTile(player_id=0, space=10, effect=1),),
+        )
+
+
+def test_board_rejects_spectator_tiles_on_adjacent_spaces() -> None:
+    with pytest.raises(ValueError, match="adjacent spaces"):
+        BoardState(
+            track_length=17,
+            camel_positions=_fully_placed_positions(),
+            spectator_tiles=(
+                SpectatorTile(player_id=0, space=3, effect=-1),
+                SpectatorTile(player_id=1, space=4, effect=1),
+            ),
+        )
+
+
+def test_board_allows_spectator_tile_adjacent_to_a_camel() -> None:
+    board = BoardState(
+        track_length=17,
+        camel_positions=_fully_placed_positions(),
+        spectator_tiles=(SpectatorTile(player_id=0, space=9, effect=1),),
+    )
+
+    assert board.spectator_tiles[0].space == 9
 
 
 def test_remaining_dice_use_canonical_order() -> None:

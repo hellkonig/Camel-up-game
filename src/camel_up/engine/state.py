@@ -89,7 +89,8 @@ class BoardState:
 
     ``camel_positions`` uses :data:`CAMEL_ORDER`; its index is the camel's
     identity. Camels on the same space must occupy unique, contiguous levels
-    beginning at zero.
+    beginning at zero. ``spectator_tiles`` is ordered by ``player_id`` so that
+    logically equivalent snapshots compare and hash identically.
     """
 
     track_length: int
@@ -116,24 +117,31 @@ class BoardState:
         if len(self.camel_positions) != len(CAMEL_ORDER):
             raise ValueError(f"camel_positions must contain {len(CAMEL_ORDER)} entries")
 
-        self._validate_camel_positions()
-        self._validate_spectator_tiles()
+        occupied_spaces = self._validate_camel_positions()
+        self._validate_spectator_tiles(occupied_spaces)
 
-    def _validate_camel_positions(self) -> None:
+    def _validate_camel_positions(self) -> set[int]:
         """Validate track coordinates and stack invariants."""
         levels_by_space: dict[int, list[int]] = {}
+        placed_count = 0
         for position in self.camel_positions:
             if position.space is None or position.level is None:
                 continue
+            placed_count += 1
             if position.space >= self.track_length:
                 raise ValueError("camel space must be within the track")
             levels_by_space.setdefault(position.space, []).append(position.level)
+
+        if placed_count not in (0, len(CAMEL_ORDER)):
+            raise ValueError("camels must be either all unplaced or all placed")
 
         for levels in levels_by_space.values():
             if sorted(levels) != list(range(len(levels))):
                 raise ValueError("stack levels must be unique and contiguous from zero")
 
-    def _validate_spectator_tiles(self) -> None:
+        return set(levels_by_space)
+
+    def _validate_spectator_tiles(self, occupied_spaces: set[int]) -> None:
         """Validate tiles for initial and populated mid-game snapshots."""
         player_ids = [tile.player_id for tile in self.spectator_tiles]
         if player_ids != sorted(player_ids) or len(player_ids) != len(set(player_ids)):
@@ -144,6 +152,19 @@ class BoardState:
             raise ValueError("spectator tiles cannot share a space")
         if any(space >= self.track_length for space in tile_spaces):
             raise ValueError("spectator tile space must be within the track")
+        if 0 in tile_spaces:
+            raise ValueError("spectator tiles cannot be placed on track space 1")
+        if occupied_spaces.intersection(tile_spaces):
+            raise ValueError("spectator tiles cannot share a space with camels")
+
+        sorted_spaces = sorted(tile_spaces)
+        if any(
+            right_space - left_space == 1
+            for left_space, right_space in zip(
+                sorted_spaces, sorted_spaces[1:], strict=False
+            )
+        ):
+            raise ValueError("spectator tiles cannot be on adjacent spaces")
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,9 +191,7 @@ class GameState:
         """Validate canonical dice order and scalar state fields."""
         if len(self.remaining_dice) != len(set(self.remaining_dice)):
             raise ValueError("remaining_dice cannot contain duplicates")
-        expected_order = tuple(
-            die for die in DIE_ORDER if die in self.remaining_dice
-        )
+        expected_order = tuple(die for die in DIE_ORDER if die in self.remaining_dice)
         if self.remaining_dice != expected_order:
             raise ValueError("remaining_dice must be valid and use canonical order")
         if self.current_player < 0:
@@ -192,7 +211,7 @@ def stack_at(board: BoardState, space: int) -> tuple[CamelId, ...]:
         raise ValueError("space must be within the track")
 
     stack: list[tuple[int, CamelId]] = []
-    for camel, position in zip(CAMEL_ORDER, board.camel_positions):
+    for camel, position in zip(CAMEL_ORDER, board.camel_positions, strict=True):
         if position.space == space and position.level is not None:
             stack.append((position.level, camel))
     return tuple(camel for _, camel in sorted(stack))
