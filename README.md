@@ -57,3 +57,20 @@ Engine rules are deterministic, testable, and independent from CLI, agent, or
 training code. Initial camel placement is modeled as one atomic transition from
 an all-unplaced pre-setup state to a complete board; setup rolls do not create
 player decision states for agents or search.
+
+## Implementation Order
+
+Build stable producers before their consumers:
+
+1. Deterministic dice, setup, and camel movement.
+2. Canonical player and player-owned game state.
+3. Betting and scoring rules.
+4. Legal actions, action masks, and turn progression.
+5. CLI migration to the stable engine API.
+6. Agent and RL observation layers.
+
+Keep each pull request focused on one semantic boundary. Target 200-400 changed
+lines of active implementation and tests, excluding documentation and isolated
+legacy compatibility adapters. See
+[`docs/software-foundation-plan.md`](docs/software-foundation-plan.md) for the
+detailed pull request sequence and acceptance criteria.

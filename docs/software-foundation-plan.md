@@ -50,14 +50,15 @@ Acceptance criteria:
   `AGENTS.md`.
 - The workflow is CI only; no deployment or release automation is needed yet.
 
-## Phase 1: Package Structure (Immediate Next Step)
+## Phase 1: Engine And Package Foundation (Immediate Sequence)
 
 Status: `Doing`
 
-Goal: Move from prototype root modules to a clean `src/` package layout with a
-semantic `engine` package. `engine` represents the deterministic Camel Up game
-engine: state, rules, legal actions, scoring, and turn progression. It should
-not become a flat bucket for unrelated shared code.
+Goal: Move from prototype root modules to a clean `src/` package layout and
+establish stable state, rule, action, and turn boundaries before migrating
+consumers. `engine` represents the deterministic Camel Up game engine: state,
+rules, legal actions, scoring, and turn progression. It should not become a
+flat bucket for unrelated shared code.
 
 Reference observations:
 
@@ -165,9 +166,16 @@ Acceptance criteria:
 
 ### Recommended Pull Request Sequence
 
-Implement the package foundation as three sequential pull requests. Each pull
-request should be based on the merged pull request before it, keep the CLI
-runnable, and pass all documented checks.
+Implement the engine in dependency order so later pull requests consume stable
+state and rule APIs instead of redesigning them. Each pull request should be
+based on the merged pull request before it, keep the CLI runnable, and pass all
+documented checks.
+
+Target 200-400 changed lines of active implementation and tests per pull
+request. Documentation and isolated legacy compatibility adapters do not count
+toward that target. Split a pull request at a semantic module boundary if it
+would exceed the target; do not change the dependency order to preserve a PR
+number.
 
 #### PR 1: `refactor: add engine state foundation`
 
@@ -232,6 +240,8 @@ Tasks:
       and leg dice reset.
 - [ ] Pass or store a seeded `random.Random` instance instead of using global
       random functions.
+- [ ] Add an atomic seeded setup transition that calculates all starting camel
+      positions before constructing the next `GameState`.
 - [ ] Add `engine.movement` for selecting a camel and every camel above it,
       placing stacks, updating positions, forward movement, backward movement,
       and finish-line handling.
@@ -254,7 +264,107 @@ Review focus:
 - Randomness injection, grey die behavior, backward movement, and camel stack
   semantics.
 
-#### PR 3: `refactor: migrate CLI to engine API`
+#### PR 3: `feat: add player state foundation`
+
+Suggested branch: `feat/player-state-foundation`
+
+Goal: Add canonical player-owned state before betting, turn, CLI, agent, or RL
+code begins consuming `GameState`.
+
+Tasks:
+
+- [ ] Add an immutable, hashable `PlayerState` and store players in
+      `GameState.players` using canonical `player_id` order.
+- [ ] Define the relationship between `current_player` and the canonical player
+      tuple, including constructor validation.
+- [ ] Represent money, pyramid tickets, held leg-betting tickets, and available
+      finish cards without adding rule transitions yet.
+- [ ] Keep spectator-tile coordinates in `BoardState`; derive whether a
+      player's tile is placed instead of duplicating that fact in `PlayerState`.
+- [ ] Add tests for canonical ordering, invalid ownership, immutable updates,
+      equality, and hashing.
+
+Acceptance criteria:
+
+- All player-owned information introduced in this PR has one authoritative
+  location in `GameState`.
+- Equivalent player states compare and hash identically for MCTS transpositions.
+- Player state contains data only; shared betting supplies, ordered final-bet
+  records, betting behavior, scoring, and turns remain in later rule modules.
+- All documented checks pass.
+
+Review focus:
+
+- State ownership, canonical ordering, avoiding duplicated facts, and future
+  observation encoding.
+
+#### PR 4: `feat: add betting and scoring rules`
+
+Suggested branch: `feat/betting-scoring-rules`
+
+Goal: Implement deterministic betting and settlement rules against the stable
+board and player state models.
+
+Tasks:
+
+- [ ] Add canonical shared betting supplies and ordered final-bet records to
+      `GameState` without duplicating player-owned data.
+- [ ] Add `engine.betting` for leg tickets, ordered final bets, ticket
+      availability, and immutable bet placement.
+- [ ] Add `engine.scoring` for leg payouts, final winner and loser payouts, and
+      money updates.
+- [ ] Define leg-owned player asset resets without resetting race-long state.
+- [ ] Keep betting and scoring functions deterministic and free of turn or CLI
+      orchestration.
+- [ ] Add focused tests for ticket exhaustion, bet ordering, payouts, ties where
+      applicable, and leg reset behavior.
+
+Acceptance criteria:
+
+- Betting and scoring transitions preserve immutable state ownership.
+- Ordered final bets and player balances are reproducible from the same state
+  and action history.
+- No CLI, agent, or RL code duplicates payout rules.
+- All documented checks pass.
+
+Review focus:
+
+- Public versus player-owned state, payout correctness, ordered bets, and leg
+  reset boundaries.
+
+#### PR 5: `feat: add legal actions and turn progression`
+
+Suggested branch: `feat/legal-actions-turns`
+
+Goal: Compose the completed rules behind one deterministic action and turn
+interface for all future consumers.
+
+Tasks:
+
+- [ ] Add typed actions for rolling, spectator tiles, leg bets, and final bets.
+- [ ] Add `engine.tiles` for tile placement and movement effects.
+- [ ] Add `engine.actions` for legal action generation and stable legal action
+      masks.
+- [ ] Add `engine.turn` for `apply_action`, current-player advancement, leg
+      completion, game termination, and emitted events.
+- [ ] Keep action application atomic and expose no partially updated states.
+- [ ] Add tests for illegal actions, action-mask agreement, leg boundaries, and
+      terminal transitions.
+
+Acceptance criteria:
+
+- `get_legal_actions` and the legal action mask describe the same choices.
+- Replaying the same seed and action sequence produces the same states and
+  events.
+- CLI, search, and RL code can share one action application API.
+- All documented checks pass.
+
+Review focus:
+
+- Legal-action completeness, stable action indices, turn boundaries, event
+  design, and deterministic composition of rule modules.
+
+#### PR 6: `refactor: migrate CLI to engine API`
 
 Suggested branch: `chore/engine-cli-cutover`
 
@@ -287,10 +397,10 @@ Review focus:
 - Package boundaries, public API size, CLI behavior, and removal of legacy
   imports.
 
-The three pull requests do not include spectator tile actions or movement
-effects, betting, scoring, legal action masks, RL environments, or training
-code. PR 1 defines the typed spectator-tile state and board-level placement
-invariants only; the remaining behavior stays in its corresponding later phase.
+RL observation encoding, environment wrappers, agents, and training code remain
+outside this sequence. Add them only after PR 5 stabilizes the state, action,
+event, and legal-action-mask contracts. PR 6 is deliberately the first consumer
+migration so it does not need to be rewritten around incomplete engine APIs.
 
 ## Phase 2: Tooling Baseline
 
@@ -457,5 +567,5 @@ The recommended first milestone is intentionally small and starts with CI:
 - [ ] Add focused tests for stack movement and deterministic dice rolling.
 
 This milestone establishes the package foundation without attempting to
-redesign the full game in one pass. Complete the remaining items through the
-three sequential pull requests described in Phase 1.
+redesign the full game in one pass. Complete the remaining work through the
+dependency-ordered pull requests described in Phase 1.
