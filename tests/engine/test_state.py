@@ -105,7 +105,7 @@ def test_board_rejects_duplicate_or_non_contiguous_stack_levels(
         BoardState(track_length=17, camel_positions=tuple(all_positions))
 
 
-def test_board_rejects_partial_camel_setup() -> None:
+def test_board_rejects_partial_camel_setup_snapshot() -> None:
     positions = list(BoardState.empty().camel_positions)
     positions[0] = CamelPosition(space=2, level=0)
 

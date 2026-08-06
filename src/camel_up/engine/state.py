@@ -90,7 +90,9 @@ class BoardState:
     ``camel_positions`` uses :data:`CAMEL_ORDER`; its index is the camel's
     identity. Camels on the same space must occupy unique, contiguous levels
     beginning at zero. ``spectator_tiles`` is ordered by ``player_id`` so that
-    logically equivalent snapshots compare and hash identically.
+    logically equivalent snapshots compare and hash identically. A snapshot
+    contains either no placed camels before setup or all camels after setup;
+    initial placement is committed as one atomic state transition.
     """
 
     track_length: int
@@ -101,9 +103,10 @@ class BoardState:
     def empty(cls, track_length: int = 17) -> BoardState:
         """Create the deterministic board state before initial dice rolls.
 
-        Starting camel positions depend on random die outcomes. The seeded
-        setup transition will place them; state construction itself performs
-        no random work.
+        Starting camel positions depend on random die outcomes. The future
+        seeded setup transition will calculate every position before creating
+        the next snapshot, so individual setup rolls do not expose partially
+        placed board states.
         """
         return cls(
             track_length=track_length,
@@ -121,7 +124,7 @@ class BoardState:
         self._validate_spectator_tiles(occupied_spaces)
 
     def _validate_camel_positions(self) -> set[int]:
-        """Validate track coordinates and stack invariants."""
+        """Validate camel coordinates and return occupied track spaces."""
         levels_by_space: dict[int, list[int]] = {}
         placed_count = 0
         for position in self.camel_positions:
@@ -139,7 +142,8 @@ class BoardState:
             if sorted(levels) != list(range(len(levels))):
                 raise ValueError("stack levels must be unique and contiguous from zero")
 
-        return set(levels_by_space)
+        occupied_spaces = set(levels_by_space)
+        return occupied_spaces
 
     def _validate_spectator_tiles(self, occupied_spaces: set[int]) -> None:
         """Validate tiles for initial and populated mid-game snapshots."""
