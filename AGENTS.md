@@ -46,8 +46,6 @@ Use a `src/` layout as the project grows:
 
 Engine logic must not depend on CLI, agents, or RL environment code. CLI,
 agent, and RL code must use stable engine APIs rather than duplicating rules.
-Build in dependency order: board and dice rules, player state, betting and
-scoring, legal actions and turns, then CLI and RL consumers.
 
 ## Code Standards
 
@@ -82,9 +80,6 @@ scoring, legal actions and turns, then CLI and RL consumers.
 
 - Branches: `feat/<name>`, `fix/<name>`, or `chore/<name>`.
 - Commits and PR titles: `<type>: <description>`.
-- Target 200-400 changed lines of active implementation and tests per PR;
-  exclude documentation and isolated legacy compatibility adapters from this
-  target, and split oversized work at semantic module boundaries.
 - Do not commit secrets, `.env` files, virtualenvs, caches, checkpoints,
   datasets, or large generated outputs.
 - Keep commits focused.
