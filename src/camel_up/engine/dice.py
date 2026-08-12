@@ -37,6 +37,12 @@ class DieRoll:
     For the grey die, ``camel`` is the color printed on the rolled face.
     Movement rules may later select the other crazy camel when stack rules
     require it.
+
+    Attributes:
+        die: The physical die selected from the current leg's inventory.
+        camel: The matching racing camel or the crazy camel color printed on
+            the grey die.
+        distance: The rolled distance, from one through three spaces.
     """
 
     die: DieId
@@ -60,6 +66,10 @@ class SetupRoll:
 
     During setup, the color printed on the grey die does not decide which
     crazy camel is placed. Keeping both facts makes setup events unambiguous.
+
+    Attributes:
+        roll: The physical die result used for initial placement.
+        camel: The camel placed by that result.
     """
 
     roll: DieRoll
@@ -75,11 +85,19 @@ class SetupRoll:
 
 
 def roll_die(state: GameState, rng: random.Random) -> tuple[GameState, DieRoll]:
-    """Roll one available die and return a replacement game state.
+    """Roll one available die and remove it from the leg inventory.
 
     A Camel Up leg ends after five of the six dice have been rolled, so the
     final die remains unavailable until the caller performs a complete leg
     transition and resets the dice inventory.
+
+    Args:
+        state: A non-terminal game with completed setup and at least two dice
+            remaining in the current leg.
+        rng: The random source to consume for die selection and face generation.
+
+    Returns:
+        A tuple containing the replacement game state and physical die result.
     """
     if not all(position.is_placed for position in state.board.camel_positions):
         raise ValueError("initial setup must be completed before rolling")
@@ -101,6 +119,12 @@ def reset_leg_dice(state: GameState) -> GameState:
 
     This transition intentionally resets only dice. Turn orchestration will
     later compose it with scoring, tile returns, and leg-number advancement.
+
+    Args:
+        state: A non-terminal, fully set up game with one unrolled die left.
+
+    Returns:
+        A replacement game state with the canonical six-die inventory.
     """
     if not all(position.is_placed for position in state.board.camel_positions):
         raise ValueError("initial setup must be completed before resetting dice")
@@ -121,9 +145,25 @@ def setup_game(
     rulebook's arbitrary ordering for camels that start on the same space. The
     grey die is then rolled once for each crazy camel. No partially populated
     ``BoardState`` is constructed or returned.
+
+    Args:
+        state: A new pre-setup game with an empty board and complete dice
+            inventory.
+        rng: The random source to consume for rolls, stack order, and crazy
+            camel placement order.
+
+    Returns:
+        A tuple containing the fully set up game state and its ordered setup
+        roll events.
     """
     _validate_pre_setup_state(state)
+    setup_rolls = _generate_setup_rolls(rng)
+    board = _build_setup_board(state.board.track_length, setup_rolls)
+    return replace(state, board=board, remaining_dice=DIE_ORDER), setup_rolls
 
+
+def _generate_setup_rolls(rng: random.Random) -> tuple[SetupRoll, ...]:
+    """Generate ordered racing and crazy camel placement rolls."""
     racing_dice = list(_RACING_DICE)
     rng.shuffle(racing_dice)
     setup_rolls: list[SetupRoll] = []
@@ -141,12 +181,19 @@ def setup_game(
         )
         unplaced_crazy_camels.remove(camel)
         setup_rolls.append(SetupRoll(roll=roll, camel=camel))
+    return tuple(setup_rolls)
 
+
+def _build_setup_board(
+    track_length: int,
+    setup_rolls: tuple[SetupRoll, ...],
+) -> BoardState:
+    """Build one complete board from validated setup roll events."""
     spaces_by_camel: dict[CamelId, int] = {}
     stacks_by_space: dict[int, list[CamelId]] = {}
     for setup_roll in setup_rolls:
         if setup_roll.roll.die is DieId.GREY:
-            space = state.board.track_length - setup_roll.roll.distance - 1
+            space = track_length - setup_roll.roll.distance - 1
         else:
             space = setup_roll.roll.distance - 1
         spaces_by_camel[setup_roll.camel] = space
@@ -164,11 +211,10 @@ def setup_game(
         )
         for camel in CAMEL_ORDER
     )
-    board = BoardState(
-        track_length=state.board.track_length,
+    return BoardState(
+        track_length=track_length,
         camel_positions=positions,
     )
-    return replace(state, board=board, remaining_dice=DIE_ORDER), tuple(setup_rolls)
 
 
 def _roll_physical_die(die: DieId, rng: random.Random) -> DieRoll:
