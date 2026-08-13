@@ -229,7 +229,7 @@ Review focus:
 
 #### PR 2: `refactor: add deterministic dice and atomic setup`
 
-Status: `Doing`
+Status: `Done`
 
 Suggested branch: `chore/deterministic-dice-setup`
 
@@ -255,11 +255,12 @@ Tasks:
 
 Acceptance criteria:
 
-- The same seed and dice state produce the same sequence of rolls.
-- Initial setup returns either the unchanged pre-setup state on failure or one
-  state containing all seven placed camels; it never exposes partial setup.
-- Dice removal and leg reset preserve canonical dice ordering.
-- All documented checks pass.
+- [x] The same seed and dice state produce the same sequence of rolls.
+- [x] Initial setup returns either the unchanged pre-setup state on failure or
+      one state containing all seven placed camels; it never exposes partial
+      setup.
+- [x] Dice removal and leg reset preserve canonical dice ordering.
+- [x] All documented checks pass.
 
 Review focus:
 
@@ -272,6 +273,8 @@ Non-goals:
   scoring, legal actions, turns, CLI migration, agents, and RL environments.
 
 #### PR 3: `refactor: add immutable stack movement rules`
+
+Status: `Todo`
 
 Suggested branch: `chore/immutable-stack-movement`
 
@@ -476,7 +479,7 @@ Acceptance criteria:
 
 ## Phase 3: Deterministic Engine
 
-Status: `Todo`
+Status: `Doing`
 
 Goal: Replace global, interactive, random behavior with explicit deterministic
 game state and rule APIs.
@@ -485,9 +488,9 @@ Tasks:
 
 - [ ] Represent engine state with dataclasses such as `CamelPosition`,
       `BoardState`, `GameState`, `DieRoll`, `SpectatorTile`, and player state.
-- [ ] Inject or store `random.Random` instead of using global `random`.
-- [ ] Remove printing and user input from engine logic.
-- [ ] Make dice rolling deterministic under a fixed seed.
+- [x] Inject or store `random.Random` instead of using global `random`.
+- [x] Remove printing and user input from engine logic.
+- [x] Make dice rolling deterministic under a fixed seed.
 - [ ] Preserve camel stack ordering semantics.
 - [ ] Define clear rule functions for movement, tile effects, leg reset, and
       game end.
@@ -507,7 +510,7 @@ Acceptance criteria:
 
 ## Phase 4: Rule Test Coverage
 
-Status: `Todo`
+Status: `Doing`
 
 Goal: Build confidence around high-risk game rules with focused tests.
 
@@ -523,7 +526,7 @@ High-priority areas:
 - [ ] End-of-game detection.
 - [ ] Winner and runner-up ordering.
 - [ ] Legal actions and legal action masks.
-- [ ] Determinism with fixed seeds.
+- [x] Determinism with fixed seeds.
 
 Acceptance criteria:
 
@@ -590,7 +593,7 @@ Tasks:
 
 - [x] Add GitHub Actions for tests, Ruff, formatting, and MyPy.
 - [ ] Add or update `CONTRIBUTING.md`.
-- [ ] Keep README setup and command instructions current.
+- [x] Keep README setup and command instructions current.
 - [ ] Add architecture notes once the engine API stabilizes.
 - [ ] Ensure `.gitignore` excludes virtualenvs, caches, checkpoints, datasets,
       and generated outputs.
@@ -611,7 +614,8 @@ The recommended first milestone is intentionally small and starts with CI:
       isolating the temporary mutable CLI adapter.
 - [ ] Update imports and CLI.
 - [ ] Expand Ruff and MyPy to check `src`.
-- [ ] Add focused tests for stack movement and deterministic dice rolling.
+- [ ] Add focused tests for stack movement.
+- [x] Add focused tests for deterministic dice rolling and atomic setup.
 
 This milestone establishes the package foundation without attempting to
 redesign the full game in one pass. Complete the remaining work through the
