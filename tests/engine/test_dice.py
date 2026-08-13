@@ -123,7 +123,7 @@ def test_dice_cannot_reset_before_five_rolls() -> None:
         reset_leg_dice(pre_setup)
 
     no_dice_state = replace(_setup_state(), remaining_dice=())
-    with pytest.raises(ValueError, match="after five rolls"):
+    with pytest.raises(ValueError, match="empty inventory"):
         reset_leg_dice(no_dice_state)
 
 
@@ -152,7 +152,7 @@ def test_setup_is_atomic_complete_and_seeded() -> None:
     }
 
 
-def test_setup_rolls_define_positions_and_stack_order() -> None:
+def test_initial_setup_rolls_define_positions_and_stack_order() -> None:
     state, rolls = setup_game(GameState.pre_setup(), random.Random(0))
 
     expected_stacks: dict[int, list[CamelId]] = {}
@@ -168,9 +168,10 @@ def test_setup_rolls_define_positions_and_stack_order() -> None:
     for space, expected_stack in expected_stacks.items():
         assert stack_at(state.board, space) == tuple(expected_stack)
 
-    assert rolls[5].roll.distance == rolls[6].roll.distance
-    assert position_of(state.board, rolls[5].placed_camel).level == 0
-    assert position_of(state.board, rolls[6].placed_camel).level == 1
+    first_crazy_setup, second_crazy_setup = rolls[5:]
+    assert first_crazy_setup.roll.distance == second_crazy_setup.roll.distance
+    assert position_of(state.board, first_crazy_setup.placed_camel).level == 0
+    assert position_of(state.board, second_crazy_setup.placed_camel).level == 1
 
 
 def test_setup_rejection_does_not_change_state_or_rng() -> None:
@@ -221,7 +222,9 @@ def test_setup_position_tuple_matches_canonical_camel_order() -> None:
         )
         expected_levels_by_space[space] = level + 1
 
-    assert len(expected_positions_by_camel) == len(CAMEL_ORDER)
-    assert tuple(expected_positions_by_camel[camel] for camel in CAMEL_ORDER) == (
-        state.board.camel_positions
+    expected_canonical_positions = tuple(
+        expected_positions_by_camel[camel] for camel in CAMEL_ORDER
     )
+
+    assert len(expected_positions_by_camel) == len(CAMEL_ORDER)
+    assert state.board.camel_positions == expected_canonical_positions

@@ -132,7 +132,9 @@ def reset_leg_dice(state: GameState) -> GameState:
         raise ValueError("initial setup must be completed before resetting dice")
     if state.terminal:
         raise ValueError("cannot reset dice after the game has ended")
-    if len(state.remaining_dice) != 1:
+    if not state.remaining_dice:
+        raise ValueError("cannot reset dice from an empty inventory")
+    if len(state.remaining_dice) > 1:
         raise ValueError("dice can only be reset after five rolls")
     return replace(state, remaining_dice=DIE_ORDER)
 
