@@ -227,44 +227,94 @@ Review focus:
 - State ownership, dataclass invariants, type design, and compatibility with the
   prototype.
 
-#### PR 2: `refactor: extract deterministic dice and movement rules`
+#### PR 2: `refactor: add deterministic dice and atomic setup`
 
-Suggested branch: `chore/deterministic-dice-movement`
+Status: `Done`
 
-Goal: Move the first high-risk rules behind deterministic, testable engine
-functions.
+Suggested branch: `chore/deterministic-dice-setup`
+
+Goal: Establish deterministic dice transitions and commit initial camel
+placement as one complete state change.
 
 Tasks:
 
-- [ ] Add `engine.dice` for dice inventory, die selection, grey die handling,
-      and leg dice reset.
-- [ ] Pass or store a seeded `random.Random` instance instead of using global
+- [x] Add `engine.dice` for dice inventory, die selection, grey die face
+      generation, and leg dice reset.
+- [x] Pass or store a seeded `random.Random` instance instead of using global
       random functions.
-- [ ] Add an atomic seeded setup transition that calculates all starting camel
+- [x] Add an immutable `DieRoll` result that records the selected die, camel,
+      and distance without storing the random generator in `GameState`.
+- [x] Emit unambiguous immutable setup rolls that distinguish the grey die's
+      printed camel from the crazy camel chosen for placement.
+- [x] Add an atomic seeded setup transition that calculates all starting camel
       positions before constructing the next `GameState`.
-- [ ] Add `engine.movement` for selecting a camel and every camel above it,
-      placing stacks, updating positions, forward movement, backward movement,
-      and finish-line handling.
-- [ ] Keep engine functions free of terminal input and output.
-- [ ] Add concrete movement tests for stack ordering and moving a camel with
-      camels above it.
-- [ ] Add deterministic dice tests that compare repeated rolls from the same
+- [x] Keep engine functions free of terminal input and output.
+- [x] Add deterministic dice tests that compare repeated rolls from the same
       seed, including grey die behavior.
-- [ ] Retain compatibility wrappers only where the CLI still needs them.
+- [x] Retain compatibility wrappers only where the CLI still needs them.
 
 Acceptance criteria:
 
-- The same seed and dice state produce the same sequence of rolls.
+- [x] The same seed and dice state produce the same sequence of rolls.
+- [x] Initial setup returns either the unchanged pre-setup state on failure or
+      one state containing all seven placed camels; it never exposes partial
+      setup.
+- [x] Dice removal and leg reset preserve canonical dice ordering.
+- [x] All documented checks pass.
+
+Review focus:
+
+- Randomness injection, state ownership, grey die behavior, setup ordering, and
+  atomicity.
+
+Non-goals:
+
+- Camel movement after setup, spectator tile effects, player state, betting,
+  scoring, legal actions, turns, CLI migration, agents, and RL environments.
+
+#### PR 3: `refactor: add immutable stack movement rules`
+
+Status: `Todo`
+
+Suggested branch: `chore/immutable-stack-movement`
+
+Goal: Move camel movement behind deterministic, immutable engine functions
+using the stable state and dice results from PR 2.
+
+Tasks:
+
+- [ ] Add `engine.movement` for selecting a camel and every camel above it,
+      placing stacks, updating positions, racing-camel clockwise movement,
+      crazy-camel counterclockwise movement, and finish-line handling.
+- [ ] Resolve a grey die's printed camel to the moving crazy camel, including
+      the passenger and stacked-crazy-camel overrides.
+- [ ] Place normally moving camel units above the destination stack; defer the
+      under-stack rule for booing spectator tiles to the tile-rules PR.
+- [ ] Keep movement functions free of random selection, terminal input, and
+      terminal output.
+- [ ] Add concrete movement tests for stack ordering, moving a camel with
+      camels above it, crazy-camel counterclockwise movement, and finish-line
+      behavior.
+
+Acceptance criteria:
+
 - Moving a camel preserves the order of the carried stack.
-- Crazy camel backward movement has an explicit tested ordering rule.
+- Crazy camel counterclockwise movement and grey-die overrides are explicitly
+  tested.
+- Source and destination stack levels remain contiguous after every move.
 - All documented checks pass.
 
 Review focus:
 
-- Randomness injection, grey die behavior, backward movement, and camel stack
-  semantics.
+- Clockwise and counterclockwise placement, carried-stack semantics,
+  finish-line boundaries, and immutable board replacement.
 
-#### PR 3: `feat: add player state foundation`
+Non-goals:
+
+- Spectator tile effects, player state, betting, scoring, legal actions, turns,
+  CLI migration, agents, and RL environments.
+
+#### PR 4: `feat: add player state foundation`
 
 Suggested branch: `feat/player-state-foundation`
 
@@ -298,7 +348,7 @@ Review focus:
 - State ownership, canonical ordering, avoiding duplicated facts, and future
   observation encoding.
 
-#### PR 4: `feat: add betting and scoring rules`
+#### PR 5: `feat: add betting and scoring rules`
 
 Suggested branch: `feat/betting-scoring-rules`
 
@@ -332,7 +382,7 @@ Review focus:
 - Public versus player-owned state, payout correctness, ordered bets, and leg
   reset boundaries.
 
-#### PR 5: `feat: add legal actions and turn progression`
+#### PR 6: `feat: add legal actions and turn progression`
 
 Suggested branch: `feat/legal-actions-turns`
 
@@ -364,7 +414,7 @@ Review focus:
 - Legal-action completeness, stable action indices, turn boundaries, event
   design, and deterministic composition of rule modules.
 
-#### PR 6: `refactor: migrate CLI to engine API`
+#### PR 7: `refactor: migrate CLI to engine API`
 
 Suggested branch: `chore/engine-cli-cutover`
 
@@ -398,8 +448,8 @@ Review focus:
   imports.
 
 RL observation encoding, environment wrappers, agents, and training code remain
-outside this sequence. Add them only after PR 5 stabilizes the state, action,
-event, and legal-action-mask contracts. PR 6 is deliberately the first consumer
+outside this sequence. Add them only after PR 6 stabilizes the state, action,
+event, and legal-action-mask contracts. PR 7 is deliberately the first consumer
 migration so it does not need to be rewritten around incomplete engine APIs.
 
 ## Phase 2: Tooling Baseline
@@ -429,7 +479,7 @@ Acceptance criteria:
 
 ## Phase 3: Deterministic Engine
 
-Status: `Todo`
+Status: `Doing`
 
 Goal: Replace global, interactive, random behavior with explicit deterministic
 game state and rule APIs.
@@ -438,9 +488,9 @@ Tasks:
 
 - [ ] Represent engine state with dataclasses such as `CamelPosition`,
       `BoardState`, `GameState`, `DieRoll`, `SpectatorTile`, and player state.
-- [ ] Inject or store `random.Random` instead of using global `random`.
-- [ ] Remove printing and user input from engine logic.
-- [ ] Make dice rolling deterministic under a fixed seed.
+- [x] Inject or store `random.Random` instead of using global `random`.
+- [x] Remove printing and user input from engine logic.
+- [x] Make dice rolling deterministic under a fixed seed.
 - [ ] Preserve camel stack ordering semantics.
 - [ ] Define clear rule functions for movement, tile effects, leg reset, and
       game end.
@@ -460,7 +510,7 @@ Acceptance criteria:
 
 ## Phase 4: Rule Test Coverage
 
-Status: `Todo`
+Status: `Doing`
 
 Goal: Build confidence around high-risk game rules with focused tests.
 
@@ -476,7 +526,7 @@ High-priority areas:
 - [ ] End-of-game detection.
 - [ ] Winner and runner-up ordering.
 - [ ] Legal actions and legal action masks.
-- [ ] Determinism with fixed seeds.
+- [x] Determinism with fixed seeds.
 
 Acceptance criteria:
 
@@ -543,7 +593,7 @@ Tasks:
 
 - [x] Add GitHub Actions for tests, Ruff, formatting, and MyPy.
 - [ ] Add or update `CONTRIBUTING.md`.
-- [ ] Keep README setup and command instructions current.
+- [x] Keep README setup and command instructions current.
 - [ ] Add architecture notes once the engine API stabilizes.
 - [ ] Ensure `.gitignore` excludes virtualenvs, caches, checkpoints, datasets,
       and generated outputs.
@@ -564,7 +614,8 @@ The recommended first milestone is intentionally small and starts with CI:
       isolating the temporary mutable CLI adapter.
 - [ ] Update imports and CLI.
 - [ ] Expand Ruff and MyPy to check `src`.
-- [ ] Add focused tests for stack movement and deterministic dice rolling.
+- [ ] Add focused tests for stack movement.
+- [x] Add focused tests for deterministic dice rolling and atomic setup.
 
 This milestone establishes the package foundation without attempting to
 redesign the full game in one pass. Complete the remaining work through the
