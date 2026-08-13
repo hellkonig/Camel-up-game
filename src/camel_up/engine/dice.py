@@ -65,22 +65,24 @@ class SetupRoll:
     """A physical setup roll paired with the camel placed by that roll.
 
     During setup, the color printed on the grey die does not decide which
-    crazy camel is placed. Keeping both facts makes setup events unambiguous.
+    crazy camel is placed. For racing dice, ``placed_camel`` matches the
+    camel on ``roll``; for the grey die, it records the separately chosen
+    crazy camel. Keeping both facts makes setup events replayable.
 
     Attributes:
         roll: The physical die result used for initial placement.
-        camel: The camel placed by that result.
+        placed_camel: The camel placed by that result.
     """
 
     roll: DieRoll
-    camel: CamelId
+    placed_camel: CamelId
 
     def __post_init__(self) -> None:
         """Require the placement camel to match the kind of die rolled."""
         if self.roll.die is DieId.GREY:
-            if self.camel not in _CRAZY_CAMELS:
+            if self.placed_camel not in _CRAZY_CAMELS:
                 raise ValueError("grey setup roll must place a crazy camel")
-        elif self.camel is not self.roll.camel:
+        elif self.placed_camel is not self.roll.camel:
             raise ValueError("racing setup roll must place its matching camel")
 
 
@@ -154,7 +156,8 @@ def setup_game(
 
     Returns:
         A tuple containing the fully set up game state and its ordered setup
-        roll events.
+        roll events. The events allow a caller to replay setup without exposing
+        partially populated engine states.
     """
     _validate_pre_setup_state(state)
     setup_rolls = _generate_setup_rolls(rng)
@@ -169,7 +172,7 @@ def _generate_setup_rolls(rng: random.Random) -> tuple[SetupRoll, ...]:
     setup_rolls: list[SetupRoll] = []
     for die in racing_dice:
         roll = _roll_physical_die(die, rng)
-        setup_rolls.append(SetupRoll(roll=roll, camel=roll.camel))
+        setup_rolls.append(SetupRoll(roll=roll, placed_camel=roll.camel))
 
     unplaced_crazy_camels = list(_CRAZY_CAMELS)
     for _ in _CRAZY_CAMELS:
@@ -180,7 +183,7 @@ def _generate_setup_rolls(rng: random.Random) -> tuple[SetupRoll, ...]:
             else unplaced_crazy_camels[0]
         )
         unplaced_crazy_camels.remove(camel)
-        setup_rolls.append(SetupRoll(roll=roll, camel=camel))
+        setup_rolls.append(SetupRoll(roll=roll, placed_camel=camel))
     return tuple(setup_rolls)
 
 
@@ -196,8 +199,8 @@ def _build_setup_board(
             space = track_length - setup_roll.roll.distance - 1
         else:
             space = setup_roll.roll.distance - 1
-        spaces_by_camel[setup_roll.camel] = space
-        stacks_by_space.setdefault(space, []).append(setup_roll.camel)
+        spaces_by_camel[setup_roll.placed_camel] = space
+        stacks_by_space.setdefault(space, []).append(setup_roll.placed_camel)
 
     levels_by_camel = {
         camel: level
@@ -218,7 +221,11 @@ def _build_setup_board(
 
 
 def _roll_physical_die(die: DieId, rng: random.Random) -> DieRoll:
-    """Return one result from a racing or grey die."""
+    """Return one unresolved result from a racing or grey die.
+
+    For the grey die, this records the printed camel color. Stack-dependent
+    overrides that determine the moving crazy camel belong to movement rules.
+    """
     distance = rng.randint(1, 3)
     camel = rng.choice(_CRAZY_CAMELS) if die is DieId.GREY else _CAMEL_BY_DIE[die]
     return DieRoll(die=die, camel=camel, distance=distance)
