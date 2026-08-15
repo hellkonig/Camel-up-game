@@ -158,7 +158,7 @@ def test_initial_setup_rolls_define_positions_and_stack_order() -> None:
     expected_stacks: dict[int, list[CamelId]] = {}
     for setup_roll in rolls:
         space = (
-            state.board.track_length - setup_roll.roll.distance - 1
+            state.board.track_length - setup_roll.roll.distance
             if setup_roll.roll.die is DieId.GREY
             else setup_roll.roll.distance - 1
         )
@@ -211,7 +211,7 @@ def test_setup_position_tuple_matches_canonical_camel_order() -> None:
     expected_levels_by_space: dict[int, int] = {}
     for setup_roll in setup_rolls:
         space = (
-            state.board.track_length - setup_roll.roll.distance - 1
+            state.board.track_length - setup_roll.roll.distance
             if setup_roll.roll.die is DieId.GREY
             else setup_roll.roll.distance - 1
         )

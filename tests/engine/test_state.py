@@ -50,7 +50,7 @@ def test_pre_setup_game_has_one_unplaced_position_per_camel() -> None:
     state = GameState.pre_setup()
     expected_positions = tuple(CamelPosition() for _ in CAMEL_ORDER)
 
-    assert state.board.track_length == 17
+    assert state.board.track_length == 16
     assert state.board.camel_positions == expected_positions
     assert state.remaining_dice == DIE_ORDER
 
@@ -223,6 +223,18 @@ def test_game_states_are_hashable_and_replaceable_without_mutation() -> None:
     assert state.remaining_dice == DIE_ORDER
     assert transpositions[state] == "root"
     assert transpositions[next_state] == "child"
+
+
+def test_finish_zone_requires_terminal_game_state() -> None:
+    board = BoardState(
+        track_length=16,
+        camel_positions=_fully_placed_positions(),
+    )
+
+    with pytest.raises(ValueError, match="finish zone requires a terminal game"):
+        GameState(board=board)
+
+    assert GameState(board=board, terminal=True).terminal
 
 
 def test_legacy_components_preserve_prototype_stack_behavior() -> None:

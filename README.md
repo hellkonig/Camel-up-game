@@ -66,15 +66,17 @@ transitions return replacement states rather than mutating their inputs:
 ```python
 import random
 
-from camel_up.engine import GameState, roll_die, setup_game
+from camel_up.engine import GameState, move_camel, roll_die, setup_game
 
 rng = random.Random(123)
 pre_setup = GameState.pre_setup()
 state, setup_rolls = setup_game(pre_setup, rng)
 state, roll = roll_die(state, rng)
+state = move_camel(state, roll)
 ```
 
 `setup_game` constructs all seven camel positions atomically. Its ordered
 `setup_rolls` can be used for replay or presentation without exposing partially
-populated engine states. Camel movement from `roll` is implemented by the next
-engine milestone.
+populated engine states. `move_camel` then applies the physical die result as a
+separate immutable transition, preserving carried-stack order and resolving
+the grey die's crazy-camel exceptions.

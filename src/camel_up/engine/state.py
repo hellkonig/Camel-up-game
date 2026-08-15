@@ -43,8 +43,10 @@ class CamelPosition:
     """A camel's coordinate on the track and within its stack.
 
     Level zero is the bottom of a stack. An unplaced camel has both fields set
-    to ``None``. Positions are the sole source of truth for camel placement;
-    board stacks are derived from them.
+    to ``None``. Finish zones use space ``-1`` for counterclockwise crossing
+    and ``BoardState.track_length`` for clockwise crossing. Positions are the
+    sole source of truth for camel placement; board stacks are derived from
+    them.
     """
 
     space: int | None = None
@@ -54,8 +56,8 @@ class CamelPosition:
         """Require a complete placed or unplaced coordinate."""
         if (self.space is None) != (self.level is None):
             raise ValueError("space and level must either both be set or both be None")
-        if self.space is not None and self.space < 0:
-            raise ValueError("space must be non-negative")
+        if self.space is not None and self.space < -1:
+            raise ValueError("space cannot be before the counterclockwise finish zone")
         if self.level is not None and self.level < 0:
             raise ValueError("level must be non-negative")
 
@@ -87,9 +89,11 @@ class SpectatorTile:
 class BoardState:
     """Immutable track state with camel coordinates and spectator tiles.
 
+    ``track_length`` is the number of playable spaces, indexed from zero.
     ``camel_positions`` uses :data:`CAMEL_ORDER`; its index is the camel's
     identity. Camels on the same space must occupy unique, contiguous levels
-    beginning at zero. ``spectator_tiles`` is ordered by ``player_id`` so that
+    beginning at zero. A terminal camel unit may occupy finish zone ``-1`` or
+    ``track_length``. ``spectator_tiles`` is ordered by ``player_id`` so that
     logically equivalent snapshots compare and hash identically. A snapshot
     contains either no placed camels before setup or all camels after setup;
     initial placement is committed as one atomic state transition.
@@ -100,7 +104,7 @@ class BoardState:
     spectator_tiles: tuple[SpectatorTile, ...] = ()
 
     @classmethod
-    def empty(cls, track_length: int = 17) -> BoardState:
+    def empty(cls, track_length: int = 16) -> BoardState:
         """Create the deterministic board state before initial dice rolls.
 
         Starting camel positions depend on random die outcomes. The future
@@ -131,8 +135,8 @@ class BoardState:
             if position.space is None or position.level is None:
                 continue
             placed_count += 1
-            if position.space >= self.track_length:
-                raise ValueError("camel space must be within the track")
+            if position.space > self.track_length:
+                raise ValueError("camel space cannot pass a finish zone")
             levels_by_space.setdefault(position.space, []).append(position.level)
 
         if placed_count not in (0, len(CAMEL_ORDER)):
@@ -187,7 +191,7 @@ class GameState:
     terminal: bool = False
 
     @classmethod
-    def pre_setup(cls, track_length: int = 17) -> GameState:
+    def pre_setup(cls, track_length: int = 16) -> GameState:
         """Create a state awaiting seeded initial camel placement."""
         return cls(board=BoardState.empty(track_length))
 
@@ -202,6 +206,11 @@ class GameState:
             raise ValueError("current_player must be non-negative")
         if self.leg_number < 1:
             raise ValueError("leg_number must be positive")
+        if not self.terminal and any(
+            position.space in (-1, self.board.track_length)
+            for position in self.board.camel_positions
+        ):
+            raise ValueError("a camel in a finish zone requires a terminal game")
 
 
 def position_of(board: BoardState, camel: CamelId) -> CamelPosition:
@@ -211,8 +220,8 @@ def position_of(board: BoardState, camel: CamelId) -> CamelPosition:
 
 def stack_at(board: BoardState, space: int) -> tuple[CamelId, ...]:
     """Return the stack at ``space`` ordered from bottom to top."""
-    if not 0 <= space < board.track_length:
-        raise ValueError("space must be within the track")
+    if not -1 <= space <= board.track_length:
+        raise ValueError("space must be on the track or in a finish zone")
 
     stack: list[tuple[int, CamelId]] = []
     for camel, position in zip(CAMEL_ORDER, board.camel_positions, strict=True):
