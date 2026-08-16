@@ -113,6 +113,13 @@ def test_board_rejects_partial_camel_setup_snapshot() -> None:
         BoardState(track_length=17, camel_positions=tuple(positions))
 
 
+def test_board_rejects_missing_camel_position_entry() -> None:
+    positions = BoardState.empty().camel_positions[:-1]
+
+    with pytest.raises(ValueError, match="must contain 7 entries"):
+        BoardState(track_length=17, camel_positions=positions)
+
+
 def test_position_requires_both_coordinate_fields() -> None:
     with pytest.raises(ValueError, match="both be set"):
         CamelPosition(space=3)
