@@ -183,6 +183,35 @@ def test_grey_die_uses_printed_camel_when_both_crazy_camels_carry_racers() -> No
     assert stack_at(next_state.board, 13) == (CamelId.BLACK, CamelId.BLUE)
 
 
+def test_grey_die_uses_printed_camel_when_crazy_camels_are_separated_in_stack() -> None:
+    state = _state_with_stacks(
+        {
+            3: (CamelId.GREEN,),
+            4: (CamelId.YELLOW,),
+            5: (CamelId.PURPLE,),
+            10: (
+                CamelId.BLACK,
+                CamelId.RED,
+                CamelId.WHITE,
+                CamelId.BLUE,
+            ),
+        }
+    )
+
+    next_state = move_camel(
+        state,
+        DieRoll(die=DieId.GREY, camel=CamelId.BLACK, distance=1),
+    )
+
+    assert stack_at(next_state.board, 10) == ()
+    assert stack_at(next_state.board, 9) == (
+        CamelId.BLACK,
+        CamelId.RED,
+        CamelId.WHITE,
+        CamelId.BLUE,
+    )
+
+
 def test_forward_finish_crossing_moves_unit_to_finish_zone() -> None:
     state = _state_with_stacks(
         {
@@ -202,6 +231,29 @@ def test_forward_finish_crossing_moves_unit_to_finish_zone() -> None:
 
     assert next_state.terminal
     assert stack_at(next_state.board, 16) == (CamelId.RED, CamelId.BLUE)
+
+
+def test_forward_finish_overshoot_clamps_unit_to_finish_zone() -> None:
+    state = _state_with_stacks(
+        {
+            3: (CamelId.BLUE,),
+            4: (CamelId.GREEN,),
+            5: (CamelId.YELLOW,),
+            6: (CamelId.PURPLE,),
+            10: (CamelId.WHITE,),
+            12: (CamelId.BLACK,),
+            15: (CamelId.RED,),
+        }
+    )
+
+    next_state = move_camel(
+        state,
+        DieRoll(die=DieId.RED, camel=CamelId.RED, distance=3),
+    )
+
+    assert next_state.terminal
+    assert stack_at(next_state.board, 15) == ()
+    assert stack_at(next_state.board, 16) == (CamelId.RED,)
 
 
 def test_backward_finish_crossing_preserves_last_place_stack_order() -> None:
@@ -226,6 +278,29 @@ def test_backward_finish_crossing_preserves_last_place_stack_order() -> None:
         CamelId.RED,
         CamelId.BLUE,
     )
+
+
+def test_backward_finish_overshoot_clamps_unit_to_finish_zone() -> None:
+    state = _state_with_stacks(
+        {
+            1: (CamelId.WHITE,),
+            3: (CamelId.RED,),
+            4: (CamelId.BLUE,),
+            5: (CamelId.GREEN,),
+            6: (CamelId.YELLOW,),
+            7: (CamelId.PURPLE,),
+            12: (CamelId.BLACK,),
+        }
+    )
+
+    next_state = move_camel(
+        state,
+        DieRoll(die=DieId.GREY, camel=CamelId.WHITE, distance=3),
+    )
+
+    assert next_state.terminal
+    assert stack_at(next_state.board, 1) == ()
+    assert stack_at(next_state.board, -1) == (CamelId.WHITE,)
 
 
 def test_crazy_camel_crossing_finish_alone_still_ends_game() -> None:
