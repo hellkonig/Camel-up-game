@@ -49,10 +49,10 @@ def move_camel(state: GameState, roll: DieRoll) -> GameState:
     if source.space is None:
         raise ValueError("moving camel must be placed")
 
-    movement_distance = roll.distance
     if moving_camel in _CRAZY_CAMELS:
-        movement_distance = -movement_distance
-    raw_destination = source.space + movement_distance
+        raw_destination = source.space - roll.distance
+    else:
+        raw_destination = source.space + roll.distance
     destination, crossed_finish = _resolve_finish_zone(
         raw_destination,
         state.board.track_length,

@@ -20,9 +20,9 @@ from camel_up.engine import (
 def _state_with_stacks(
     stacks: dict[int, tuple[CamelId, ...]],
     *,
-    open_spaces: tuple[int, ...] = (),
     spectator_tiles: tuple[SpectatorTile, ...] = (),
 ) -> GameState:
+    """Build a state from complete bottom-to-top stack definitions."""
     positions_by_camel: dict[CamelId, CamelPosition] = {}
     for space, stack in stacks.items():
         for level, camel in enumerate(stack):
@@ -30,15 +30,8 @@ def _state_with_stacks(
                 raise ValueError("test stacks cannot place a camel more than once")
             positions_by_camel[camel] = CamelPosition(space=space, level=level)
 
-    reserved_spaces = set(stacks) | set(open_spaces)
-    reserved_spaces.update(tile.space for tile in spectator_tiles)
-    filler_spaces = (space for space in range(16) if space not in reserved_spaces)
-    for camel in CAMEL_ORDER:
-        if camel not in positions_by_camel:
-            positions_by_camel[camel] = CamelPosition(
-                space=next(filler_spaces),
-                level=0,
-            )
+    if set(positions_by_camel) != set(CAMEL_ORDER):
+        raise ValueError("test stacks must place every camel exactly once")
     positions = tuple(positions_by_camel[camel] for camel in CAMEL_ORDER)
     return GameState(
         board=BoardState(
@@ -54,6 +47,8 @@ def test_racing_camel_carries_upper_stack_onto_destination_stack() -> None:
         {
             3: (CamelId.GREEN, CamelId.RED, CamelId.BLUE),
             5: (CamelId.BLACK, CamelId.PURPLE),
+            8: (CamelId.YELLOW,),
+            12: (CamelId.WHITE,),
         }
     )
 
@@ -80,8 +75,11 @@ def test_racing_camel_carries_upper_stack_onto_destination_stack() -> None:
 def test_crazy_camel_moves_backward_with_its_passengers() -> None:
     state = _state_with_stacks(
         {
+            4: (CamelId.YELLOW,),
+            5: (CamelId.PURPLE,),
             8: (CamelId.GREEN,),
             10: (CamelId.WHITE, CamelId.RED, CamelId.BLUE),
+            14: (CamelId.BLACK,),
         }
     )
 
@@ -102,10 +100,13 @@ def test_crazy_camel_moves_backward_with_its_passengers() -> None:
 def test_grey_die_moves_only_crazy_camel_carrying_racing_passengers() -> None:
     state = _state_with_stacks(
         {
+            3: (CamelId.BLUE,),
+            4: (CamelId.GREEN,),
+            5: (CamelId.YELLOW,),
+            6: (CamelId.PURPLE,),
             10: (CamelId.WHITE, CamelId.RED),
             14: (CamelId.BLACK,),
-        },
-        open_spaces=(9,),
+        }
     )
 
     next_state = move_camel(
@@ -123,9 +124,12 @@ def test_grey_die_moves_only_crazy_camel_carrying_racing_passengers() -> None:
 def test_grey_die_moves_upper_crazy_camel_when_they_are_directly_stacked() -> None:
     state = _state_with_stacks(
         {
+            3: (CamelId.BLUE,),
+            4: (CamelId.GREEN,),
+            5: (CamelId.YELLOW,),
+            6: (CamelId.PURPLE,),
             10: (CamelId.WHITE, CamelId.BLACK, CamelId.RED),
-        },
-        open_spaces=(9,),
+        }
     )
 
     next_state = move_camel(
@@ -140,10 +144,14 @@ def test_grey_die_moves_upper_crazy_camel_when_they_are_directly_stacked() -> No
 def test_grey_die_uses_printed_camel_when_no_exception_applies() -> None:
     state = _state_with_stacks(
         {
+            3: (CamelId.RED,),
+            4: (CamelId.BLUE,),
+            5: (CamelId.GREEN,),
+            6: (CamelId.YELLOW,),
+            7: (CamelId.PURPLE,),
             10: (CamelId.WHITE,),
             14: (CamelId.BLACK,),
-        },
-        open_spaces=(12,),
+        }
     )
 
     next_state = move_camel(
@@ -158,10 +166,12 @@ def test_grey_die_uses_printed_camel_when_no_exception_applies() -> None:
 def test_grey_die_uses_printed_camel_when_both_crazy_camels_carry_racers() -> None:
     state = _state_with_stacks(
         {
+            3: (CamelId.GREEN,),
+            4: (CamelId.YELLOW,),
+            5: (CamelId.PURPLE,),
             10: (CamelId.WHITE, CamelId.RED),
             14: (CamelId.BLACK, CamelId.BLUE),
-        },
-        open_spaces=(13,),
+        }
     )
 
     next_state = move_camel(
@@ -176,6 +186,11 @@ def test_grey_die_uses_printed_camel_when_both_crazy_camels_carry_racers() -> No
 def test_forward_finish_crossing_moves_unit_to_finish_zone() -> None:
     state = _state_with_stacks(
         {
+            3: (CamelId.GREEN,),
+            4: (CamelId.YELLOW,),
+            5: (CamelId.PURPLE,),
+            10: (CamelId.WHITE,),
+            12: (CamelId.BLACK,),
             14: (CamelId.RED, CamelId.BLUE),
         }
     )
@@ -193,6 +208,9 @@ def test_backward_finish_crossing_preserves_last_place_stack_order() -> None:
     state = _state_with_stacks(
         {
             1: (CamelId.WHITE, CamelId.RED, CamelId.BLUE),
+            4: (CamelId.GREEN,),
+            5: (CamelId.YELLOW,),
+            6: (CamelId.PURPLE,),
             12: (CamelId.BLACK,),
         }
     )
@@ -214,6 +232,12 @@ def test_crazy_camel_crossing_finish_alone_still_ends_game() -> None:
     state = _state_with_stacks(
         {
             0: (CamelId.WHITE,),
+            3: (CamelId.RED,),
+            4: (CamelId.BLUE,),
+            5: (CamelId.GREEN,),
+            6: (CamelId.YELLOW,),
+            7: (CamelId.PURPLE,),
+            12: (CamelId.BLACK,),
         }
     )
 
@@ -231,7 +255,17 @@ def test_movement_rejects_incomplete_or_terminal_game() -> None:
     with pytest.raises(ValueError, match="setup must be completed"):
         move_camel(GameState.pre_setup(), roll)
 
-    state = _state_with_stacks({})
+    state = _state_with_stacks(
+        {
+            3: (CamelId.RED,),
+            4: (CamelId.BLUE,),
+            5: (CamelId.GREEN,),
+            6: (CamelId.YELLOW,),
+            7: (CamelId.PURPLE,),
+            10: (CamelId.WHITE,),
+            12: (CamelId.BLACK,),
+        }
+    )
     with pytest.raises(ValueError, match="game has ended"):
         move_camel(replace(state, terminal=True), roll)
 
@@ -239,7 +273,13 @@ def test_movement_rejects_incomplete_or_terminal_game() -> None:
 def test_movement_defers_spectator_tile_effects_explicitly() -> None:
     state = _state_with_stacks(
         {
+            3: (CamelId.RED,),
+            4: (CamelId.BLUE,),
+            5: (CamelId.GREEN,),
+            6: (CamelId.YELLOW,),
             7: (CamelId.PURPLE,),
+            10: (CamelId.WHITE,),
+            12: (CamelId.BLACK,),
         },
         spectator_tiles=(SpectatorTile(player_id=0, space=8, effect=1),),
     )
