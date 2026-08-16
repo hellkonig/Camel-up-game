@@ -290,10 +290,11 @@ Tasks:
       the passenger and stacked-crazy-camel overrides.
 - [x] Place normally moving camel units above the destination stack; defer the
       under-stack rule for booing spectator tiles to the tile-rules PR.
-- [x] Keep movement functions free of random selection, terminal input, and
-      terminal output.
+- [x] Keep movement functions free of random selection, reject terminal input,
+      and mark finish crossing terminal in the returned state.
 - [x] Add concrete movement tests for stack ordering, moving a camel with
-      camels above it, crazy-camel backward movement, and finish-line behavior.
+      camels above it, both grey-die exceptions, crazy-camel backward movement,
+      and exact or overshooting finish-line crossings.
 
 Acceptance criteria:
 
@@ -522,7 +523,7 @@ High-priority areas:
 - [ ] Spectator tile placement constraints.
 - [ ] Spectator tile movement effects.
 - [ ] Leg reset behavior.
-- [ ] End-of-game detection.
+- [x] End-of-game detection.
 - [ ] Winner and runner-up ordering.
 - [ ] Legal actions and legal action masks.
 - [x] Determinism with fixed seeds.

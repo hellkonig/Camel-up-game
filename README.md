@@ -58,7 +58,7 @@ training code. Initial camel placement is modeled as one atomic transition from
 an all-unplaced pre-setup state to a complete board; setup rolls do not create
 player decision states for agents or search.
 
-## Deterministic Engine Setup
+## Deterministic Engine Transitions
 
 Pass an explicit random source to reproduce setup and dice results. Engine
 transitions return replacement states rather than mutating their inputs:
@@ -79,4 +79,7 @@ state = move_camel(state, roll)
 `setup_rolls` can be used for replay or presentation without exposing partially
 populated engine states. `move_camel` then applies the physical die result as a
 separate immutable transition, preserving carried-stack order and resolving
-the grey die's crazy-camel exceptions.
+the grey die's crazy-camel exceptions. Crossing either finish boundary places
+the moved unit in the corresponding finish zone and returns a terminal state.
+Spectator-tile movement effects are deferred to a later engine milestone;
+`move_camel` currently rejects a move that would require one.
