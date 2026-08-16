@@ -7,6 +7,7 @@ from camel_up.engine.dice import (
     roll_die,
     setup_game,
 )
+from camel_up.engine.movement import move_camel
 from camel_up.engine.state import (
     CAMEL_ORDER,
     DIE_ORDER,
@@ -33,6 +34,7 @@ __all__ = [
     "SpectatorTile",
     "SetupRoll",
     "carried_camels",
+    "move_camel",
     "position_of",
     "reset_leg_dice",
     "roll_die",

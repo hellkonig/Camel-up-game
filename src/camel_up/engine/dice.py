@@ -198,7 +198,7 @@ def _build_setup_board(
     stacks_by_space: dict[int, list[CamelId]] = {}
     for setup_roll in setup_rolls:
         if setup_roll.roll.die is DieId.GREY:
-            space = track_length - setup_roll.roll.distance - 1
+            space = track_length - setup_roll.roll.distance
         else:
             space = setup_roll.roll.distance - 1
         spaces_by_camel[setup_roll.placed_camel] = space

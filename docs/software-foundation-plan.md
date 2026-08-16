@@ -274,7 +274,7 @@ Non-goals:
 
 #### PR 3: `refactor: add immutable stack movement rules`
 
-Status: `Todo`
+Status: `Done`
 
 Suggested branch: `chore/immutable-stack-movement`
 
@@ -283,31 +283,31 @@ using the stable state and dice results from PR 2.
 
 Tasks:
 
-- [ ] Add `engine.movement` for selecting a camel and every camel above it,
-      placing stacks, updating positions, racing-camel clockwise movement,
-      crazy-camel counterclockwise movement, and finish-line handling.
-- [ ] Resolve a grey die's printed camel to the moving crazy camel, including
+- [x] Add `engine.movement` for selecting a camel and every camel above it,
+      placing stacks, updating positions, racing-camel forward movement,
+      crazy-camel backward movement, and finish-line handling.
+- [x] Resolve a grey die's printed camel to the moving crazy camel, including
       the passenger and stacked-crazy-camel overrides.
-- [ ] Place normally moving camel units above the destination stack; defer the
+- [x] Place normally moving camel units above the destination stack; defer the
       under-stack rule for booing spectator tiles to the tile-rules PR.
-- [ ] Keep movement functions free of random selection, terminal input, and
-      terminal output.
-- [ ] Add concrete movement tests for stack ordering, moving a camel with
-      camels above it, crazy-camel counterclockwise movement, and finish-line
-      behavior.
+- [x] Keep movement functions free of random selection, reject terminal input,
+      and mark finish crossing terminal in the returned state.
+- [x] Add concrete movement tests for stack ordering, moving a camel with
+      camels above it, both grey-die exceptions, crazy-camel backward movement,
+      and exact or overshooting finish-line crossings.
 
 Acceptance criteria:
 
 - Moving a camel preserves the order of the carried stack.
-- Crazy camel counterclockwise movement and grey-die overrides are explicitly
+- Crazy camel backward movement and grey-die overrides are explicitly
   tested.
 - Source and destination stack levels remain contiguous after every move.
 - All documented checks pass.
 
 Review focus:
 
-- Clockwise and counterclockwise placement, carried-stack semantics,
-  finish-line boundaries, and immutable board replacement.
+- Forward and backward placement, carried-stack semantics, finish-line
+  boundaries, and immutable board replacement.
 
 Non-goals:
 
@@ -491,7 +491,7 @@ Tasks:
 - [x] Inject or store `random.Random` instead of using global `random`.
 - [x] Remove printing and user input from engine logic.
 - [x] Make dice rolling deterministic under a fixed seed.
-- [ ] Preserve camel stack ordering semantics.
+- [x] Preserve camel stack ordering semantics.
 - [ ] Define clear rule functions for movement, tile effects, leg reset, and
       game end.
 
@@ -516,14 +516,14 @@ Goal: Build confidence around high-risk game rules with focused tests.
 
 High-priority areas:
 
-- [ ] Camel stack ordering.
-- [ ] Moving a camel with camels above it.
-- [ ] Crazy camel backward movement.
-- [ ] Grey die behavior.
+- [x] Camel stack ordering.
+- [x] Moving a camel with camels above it.
+- [x] Crazy camel backward movement.
+- [x] Grey die behavior.
 - [ ] Spectator tile placement constraints.
 - [ ] Spectator tile movement effects.
 - [ ] Leg reset behavior.
-- [ ] End-of-game detection.
+- [x] End-of-game detection.
 - [ ] Winner and runner-up ordering.
 - [ ] Legal actions and legal action masks.
 - [x] Determinism with fixed seeds.
@@ -614,7 +614,7 @@ The recommended first milestone is intentionally small and starts with CI:
       isolating the temporary mutable CLI adapter.
 - [ ] Update imports and CLI.
 - [ ] Expand Ruff and MyPy to check `src`.
-- [ ] Add focused tests for stack movement.
+- [x] Add focused tests for stack movement.
 - [x] Add focused tests for deterministic dice rolling and atomic setup.
 
 This milestone establishes the package foundation without attempting to
