@@ -19,16 +19,15 @@ from camel_up.engine.state import (
 )
 
 _CRAZY_CAMELS: Final = (CamelId.WHITE, CamelId.BLACK)
-_RACING_CAMELS: Final = frozenset(CAMEL_ORDER[:-2])
 
 
 def move_camel(state: GameState, roll: DieRoll) -> GameState:
     """Apply one physical die result to a fully set up game state.
 
     The selected camel carries every camel above it and the complete unit lands
-    on top of any destination stack. Racing camels move clockwise; crazy
-    camels move counterclockwise. Crossing either finish boundary clamps the
-    unit into that boundary's finish zone and makes the game terminal.
+    on top of any destination stack. Racing camels move forward; crazy camels
+    move backward. Crossing either finish boundary clamps the unit into that
+    boundary's finish zone and makes the game terminal.
 
     Dice selection and removal are handled by :func:`roll_die`; this function
     only applies the deterministic movement caused by ``roll``.
@@ -50,8 +49,10 @@ def move_camel(state: GameState, roll: DieRoll) -> GameState:
     if source.space is None:
         raise ValueError("moving camel must be placed")
 
-    direction = -1 if moving_camel in _CRAZY_CAMELS else 1
-    raw_destination = source.space + direction * roll.distance
+    movement_distance = roll.distance
+    if moving_camel in _CRAZY_CAMELS:
+        movement_distance = -movement_distance
+    raw_destination = source.space + movement_distance
     destination, crossed_finish = _resolve_finish_zone(
         raw_destination,
         state.board.track_length,
@@ -76,36 +77,56 @@ def move_camel(state: GameState, roll: DieRoll) -> GameState:
 
 
 def _resolve_moving_camel(board: BoardState, roll: DieRoll) -> CamelId:
-    """Resolve the grey die's passenger and stacked-camel exceptions."""
+    """Resolve the grey die's passenger and stacked-camel exceptions in order."""
     if roll.die is not DieId.GREY:
         return roll.camel
 
-    passenger_carriers = tuple(
-        camel
-        for camel in _CRAZY_CAMELS
-        if any(
-            passenger in _RACING_CAMELS
-            for passenger in carried_camels(board, camel)[1:]
-        )
-    )
-    if len(passenger_carriers) == 1:
-        return passenger_carriers[0]
+    only_passenger_carrier = _only_crazy_camel_with_racing_passengers(board)
+    if only_passenger_carrier is not None:
+        return only_passenger_carrier
 
-    white_position = position_of(board, CamelId.WHITE)
-    black_position = position_of(board, CamelId.BLACK)
-    if (
-        white_position.space == black_position.space
-        and white_position.level is not None
-        and black_position.level is not None
-        and abs(white_position.level - black_position.level) == 1
-    ):
-        return (
-            CamelId.WHITE
-            if white_position.level > black_position.level
-            else CamelId.BLACK
-        )
+    upper_crazy_camel = _upper_directly_stacked_crazy_camel(board)
+    if upper_crazy_camel is not None:
+        return upper_crazy_camel
 
     return roll.camel
+
+
+def _only_crazy_camel_with_racing_passengers(
+    board: BoardState,
+) -> CamelId | None:
+    """Return the sole crazy camel carrying racers, if there is exactly one."""
+    carriers = [
+        crazy_camel
+        for crazy_camel in _CRAZY_CAMELS
+        if _has_racing_passenger(board, crazy_camel)
+    ]
+
+    if len(carriers) != 1:
+        return None
+    return carriers[0]
+
+
+def _has_racing_passenger(board: BoardState, crazy_camel: CamelId) -> bool:
+    """Return whether a racing camel sits anywhere above ``crazy_camel``."""
+    passengers = carried_camels(board, crazy_camel)[1:]
+    return any(passenger not in _CRAZY_CAMELS for passenger in passengers)
+
+
+def _upper_directly_stacked_crazy_camel(board: BoardState) -> CamelId | None:
+    """Return the upper crazy camel when both are adjacent in one stack."""
+    white_position = position_of(board, CamelId.WHITE)
+    black_position = position_of(board, CamelId.BLACK)
+    if white_position.space != black_position.space:
+        return None
+    if white_position.level is None or black_position.level is None:
+        return None
+    if abs(white_position.level - black_position.level) != 1:
+        return None
+
+    if white_position.level > black_position.level:
+        return CamelId.WHITE
+    return CamelId.BLACK
 
 
 def _resolve_finish_zone(destination: int, track_length: int) -> tuple[int, bool]:

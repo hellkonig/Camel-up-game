@@ -43,10 +43,9 @@ class CamelPosition:
     """A camel's coordinate on the track and within its stack.
 
     Level zero is the bottom of a stack. An unplaced camel has both fields set
-    to ``None``. Finish zones use space ``-1`` for counterclockwise crossing
-    and ``BoardState.track_length`` for clockwise crossing. Positions are the
-    sole source of truth for camel placement; board stacks are derived from
-    them.
+    to ``None``. Finish zones use space ``-1`` for backward crossing and
+    ``BoardState.track_length`` for forward crossing. Positions are the sole
+    source of truth for camel placement; board stacks are derived from them.
     """
 
     space: int | None = None
@@ -57,7 +56,7 @@ class CamelPosition:
         if (self.space is None) != (self.level is None):
             raise ValueError("space and level must either both be set or both be None")
         if self.space is not None and self.space < -1:
-            raise ValueError("space cannot be before the counterclockwise finish zone")
+            raise ValueError("space cannot be before the backward finish zone")
         if self.level is not None and self.level < 0:
             raise ValueError("level must be non-negative")
 

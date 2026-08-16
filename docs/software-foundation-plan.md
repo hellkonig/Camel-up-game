@@ -284,8 +284,8 @@ using the stable state and dice results from PR 2.
 Tasks:
 
 - [x] Add `engine.movement` for selecting a camel and every camel above it,
-      placing stacks, updating positions, racing-camel clockwise movement,
-      crazy-camel counterclockwise movement, and finish-line handling.
+      placing stacks, updating positions, racing-camel forward movement,
+      crazy-camel backward movement, and finish-line handling.
 - [x] Resolve a grey die's printed camel to the moving crazy camel, including
       the passenger and stacked-crazy-camel overrides.
 - [x] Place normally moving camel units above the destination stack; defer the
@@ -293,21 +293,20 @@ Tasks:
 - [x] Keep movement functions free of random selection, terminal input, and
       terminal output.
 - [x] Add concrete movement tests for stack ordering, moving a camel with
-      camels above it, crazy-camel counterclockwise movement, and finish-line
-      behavior.
+      camels above it, crazy-camel backward movement, and finish-line behavior.
 
 Acceptance criteria:
 
 - Moving a camel preserves the order of the carried stack.
-- Crazy camel counterclockwise movement and grey-die overrides are explicitly
+- Crazy camel backward movement and grey-die overrides are explicitly
   tested.
 - Source and destination stack levels remain contiguous after every move.
 - All documented checks pass.
 
 Review focus:
 
-- Clockwise and counterclockwise placement, carried-stack semantics,
-  finish-line boundaries, and immutable board replacement.
+- Forward and backward placement, carried-stack semantics, finish-line
+  boundaries, and immutable board replacement.
 
 Non-goals:
 

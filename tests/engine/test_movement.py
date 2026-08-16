@@ -23,20 +23,15 @@ def _state_with_stacks(
     open_spaces: tuple[int, ...] = (),
     spectator_tiles: tuple[SpectatorTile, ...] = (),
 ) -> GameState:
-    positions_by_camel = {
-        camel: CamelPosition(space=space, level=level)
-        for space, stack in stacks.items()
-        for level, camel in enumerate(stack)
-    }
-    explicitly_placed = [camel for stack in stacks.values() for camel in stack]
-    if len(explicitly_placed) != len(set(explicitly_placed)):
-        raise ValueError("test stacks cannot place a camel more than once")
+    positions_by_camel: dict[CamelId, CamelPosition] = {}
+    for space, stack in stacks.items():
+        for level, camel in enumerate(stack):
+            if camel in positions_by_camel:
+                raise ValueError("test stacks cannot place a camel more than once")
+            positions_by_camel[camel] = CamelPosition(space=space, level=level)
 
-    reserved_spaces = {
-        *stacks,
-        *open_spaces,
-        *(tile.space for tile in spectator_tiles),
-    }
+    reserved_spaces = set(stacks) | set(open_spaces)
+    reserved_spaces.update(tile.space for tile in spectator_tiles)
     filler_spaces = (space for space in range(16) if space not in reserved_spaces)
     for camel in CAMEL_ORDER:
         if camel not in positions_by_camel:
@@ -82,7 +77,7 @@ def test_racing_camel_carries_upper_stack_onto_destination_stack() -> None:
     )
 
 
-def test_crazy_camel_moves_counterclockwise_with_its_passengers() -> None:
+def test_crazy_camel_moves_backward_with_its_passengers() -> None:
     state = _state_with_stacks(
         {
             8: (CamelId.GREEN,),
@@ -160,7 +155,25 @@ def test_grey_die_uses_printed_camel_when_no_exception_applies() -> None:
     assert position_of(next_state.board, CamelId.WHITE).space == 10
 
 
-def test_clockwise_finish_crossing_moves_unit_to_finish_zone() -> None:
+def test_grey_die_uses_printed_camel_when_both_crazy_camels_carry_racers() -> None:
+    state = _state_with_stacks(
+        {
+            10: (CamelId.WHITE, CamelId.RED),
+            14: (CamelId.BLACK, CamelId.BLUE),
+        },
+        open_spaces=(13,),
+    )
+
+    next_state = move_camel(
+        state,
+        DieRoll(die=DieId.GREY, camel=CamelId.BLACK, distance=1),
+    )
+
+    assert stack_at(next_state.board, 10) == (CamelId.WHITE, CamelId.RED)
+    assert stack_at(next_state.board, 13) == (CamelId.BLACK, CamelId.BLUE)
+
+
+def test_forward_finish_crossing_moves_unit_to_finish_zone() -> None:
     state = _state_with_stacks(
         {
             14: (CamelId.RED, CamelId.BLUE),
@@ -176,7 +189,7 @@ def test_clockwise_finish_crossing_moves_unit_to_finish_zone() -> None:
     assert stack_at(next_state.board, 16) == (CamelId.RED, CamelId.BLUE)
 
 
-def test_counterclockwise_finish_preserves_last_place_stack_order() -> None:
+def test_backward_finish_crossing_preserves_last_place_stack_order() -> None:
     state = _state_with_stacks(
         {
             1: (CamelId.WHITE, CamelId.RED, CamelId.BLUE),
