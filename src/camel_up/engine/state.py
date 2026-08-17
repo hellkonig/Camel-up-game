@@ -33,6 +33,10 @@ class DieId(str, Enum):
 
 CAMEL_ORDER: Final = tuple(CamelId)
 DIE_ORDER: Final = tuple(DieId)
+RACING_CAMEL_ORDER: Final = CAMEL_ORDER[:-2]
+MIN_PLAYERS: Final = 3
+MAX_PLAYERS: Final = 8
+_LEG_BETTING_TICKET_VALUES: Final = frozenset({2, 3, 5})
 _CAMEL_INDEX: Final = MappingProxyType(
     {camel: index for index, camel in enumerate(CAMEL_ORDER)}
 )
@@ -82,6 +86,77 @@ class SpectatorTile:
             raise ValueError("space must be non-negative")
         if self.effect not in (-1, 1):
             raise ValueError("effect must be -1 or 1")
+
+
+@dataclass(frozen=True, slots=True)
+class LegBettingTicket:
+    """A leg-scoped betting ticket held by one player."""
+
+    camel: CamelId
+    value: int
+
+    def __post_init__(self) -> None:
+        """Require a printed ticket from the racing-camel supply."""
+        if self.camel not in RACING_CAMEL_ORDER:
+            raise ValueError("leg betting tickets must show a racing camel")
+        if self.value not in _LEG_BETTING_TICKET_VALUES:
+            raise ValueError("leg betting ticket value must be 2, 3, or 5")
+
+
+@dataclass(frozen=True, slots=True)
+class PlayerState:
+    """Authoritative player-owned data for one engine state.
+
+    This is complete engine truth, not a player-relative RL observation.
+    Observation encoders must mask information an observing player cannot
+    legally know, including opponents' available finish cards.
+
+    Leg betting tickets are canonicalized by racing-camel order and then by
+    descending printed value. Available finish cards form a canonical
+    subsequence of :data:`RACING_CAMEL_ORDER`. Requiring these orders gives
+    logically equivalent holdings identical equality and hashing behavior.
+    """
+
+    player_id: int
+    money: int = 3
+    pyramid_tickets: int = 0
+    leg_betting_tickets: tuple[LegBettingTicket, ...] = ()
+    available_finish_cards: tuple[CamelId, ...] = RACING_CAMEL_ORDER
+
+    def __post_init__(self) -> None:
+        """Validate scalar resources and canonical player-owned collections."""
+        if self.player_id < 0:
+            raise ValueError("player_id must be non-negative")
+        if self.money < 0:
+            raise ValueError("money must be non-negative")
+        if self.pyramid_tickets < 0:
+            raise ValueError("pyramid_tickets must be non-negative")
+
+        expected_tickets = tuple(
+            sorted(
+                self.leg_betting_tickets,
+                key=lambda ticket: (_CAMEL_INDEX[ticket.camel], -ticket.value),
+            )
+        )
+        if self.leg_betting_tickets != expected_tickets:
+            raise ValueError("leg_betting_tickets must use canonical order")
+
+        if len(self.available_finish_cards) != len(
+            set(self.available_finish_cards)
+        ):
+            raise ValueError("available_finish_cards cannot contain duplicates")
+        if any(
+            camel not in RACING_CAMEL_ORDER
+            for camel in self.available_finish_cards
+        ):
+            raise ValueError("available_finish_cards must show racing camels")
+        expected_cards = tuple(
+            camel
+            for camel in RACING_CAMEL_ORDER
+            if camel in self.available_finish_cards
+        )
+        if self.available_finish_cards != expected_cards:
+            raise ValueError("available_finish_cards must use canonical order")
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,33 +251,56 @@ class BoardState:
 
 @dataclass(frozen=True, slots=True)
 class GameState:
-    """Public state foundation for deterministic engine transitions.
+    """Authoritative state foundation for deterministic engine transitions.
 
     The state contains no random generator and exposes no mutation methods.
     Rule functions receive a state and return a replacement state atomically,
     which makes states safe to compare, hash, replay, and store in search trees.
+    It contains complete game truth; agents must consume a future
+    player-relative observation rather than this state directly when the rules
+    require hidden information.
     """
 
     board: BoardState
+    players: tuple[PlayerState, ...]
     remaining_dice: tuple[DieId, ...] = DIE_ORDER
     current_player: int = 0
     leg_number: int = 1
     terminal: bool = False
 
     @classmethod
-    def pre_setup(cls, track_length: int = 16) -> GameState:
-        """Create a state awaiting seeded initial camel placement."""
-        return cls(board=BoardState.empty(track_length))
+    def pre_setup(
+        cls,
+        track_length: int = 16,
+        player_count: int = MIN_PLAYERS,
+    ) -> GameState:
+        """Create a game with players that awaits initial camel placement."""
+        players = tuple(PlayerState(player_id=index) for index in range(player_count))
+        return cls(board=BoardState.empty(track_length), players=players)
 
     def __post_init__(self) -> None:
-        """Validate canonical dice order and scalar state fields."""
+        """Validate player ownership, canonical dice, and scalar state fields."""
+        if not MIN_PLAYERS <= len(self.players) <= MAX_PLAYERS:
+            raise ValueError(
+                f"players must contain between {MIN_PLAYERS} and {MAX_PLAYERS} entries"
+            )
+        player_ids = tuple(player.player_id for player in self.players)
+        if player_ids != tuple(range(len(self.players))):
+            raise ValueError(
+                "players must be ordered by contiguous player_id values from zero"
+            )
+        if not 0 <= self.current_player < len(self.players):
+            raise ValueError("current_player must identify a player in players")
+        if any(
+            tile.player_id >= len(self.players)
+            for tile in self.board.spectator_tiles
+        ):
+            raise ValueError("spectator tiles must belong to a player in players")
         if len(self.remaining_dice) != len(set(self.remaining_dice)):
             raise ValueError("remaining_dice cannot contain duplicates")
         expected_order = tuple(die for die in DIE_ORDER if die in self.remaining_dice)
         if self.remaining_dice != expected_order:
             raise ValueError("remaining_dice must be valid and use canonical order")
-        if self.current_player < 0:
-            raise ValueError("current_player must be non-negative")
         if self.leg_number < 1:
             raise ValueError("leg_number must be positive")
         if not self.terminal and any(
@@ -235,3 +333,20 @@ def carried_camels(board: BoardState, camel: CamelId) -> tuple[CamelId, ...]:
     if position.space is None or position.level is None:
         raise ValueError("camel must be placed before it can carry a stack")
     return stack_at(board, position.space)[position.level :]
+
+
+def spectator_tile_for_player(
+    state: GameState,
+    player_id: int,
+) -> SpectatorTile | None:
+    """Return a player's placed spectator tile without duplicating ownership."""
+    if not 0 <= player_id < len(state.players):
+        raise ValueError("player_id must identify a player in players")
+    return next(
+        (
+            tile
+            for tile in state.board.spectator_tiles
+            if tile.player_id == player_id
+        ),
+        None,
+    )

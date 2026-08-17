@@ -83,3 +83,18 @@ the grey die's crazy-camel exceptions. Crossing either finish boundary places
 the moved unit in the corresponding finish zone and returns a terminal state.
 Spectator-tile movement effects are deferred to a later engine milestone;
 `move_camel` currently rejects a move that would require one.
+
+## Player State And Agent Observations
+
+`GameState.pre_setup()` creates the default three-player game and accepts a
+`player_count` from three through eight. Each immutable `PlayerState` owns its
+money, pyramid tickets, held leg-betting tickets, and remaining finish cards;
+spectator-tile placement is derived from `BoardState` instead of stored twice.
+
+`GameState` is authoritative engine truth, not an observation that should be
+passed directly to an RL policy. Future environment adapters will encode a
+player-relative observation and mask information that the observing player
+cannot legally know, including opponents' available finish cards. Keeping that
+projection outside the engine lets deterministic simulation, self-play, and a
+live play-assistant share the same rule state without leaking hidden
+information to an agent.

@@ -316,6 +316,8 @@ Non-goals:
 
 #### PR 4: `feat: add player state foundation`
 
+Status: `Done`
+
 Suggested branch: `feat/player-state-foundation`
 
 Goal: Add canonical player-owned state before betting, turn, CLI, agent, or RL
@@ -323,15 +325,17 @@ code begins consuming `GameState`.
 
 Tasks:
 
-- [ ] Add an immutable, hashable `PlayerState` and store players in
+- [x] Add an immutable, hashable `PlayerState` and store players in
       `GameState.players` using canonical `player_id` order.
-- [ ] Define the relationship between `current_player` and the canonical player
+- [x] Define the relationship between `current_player` and the canonical player
       tuple, including constructor validation.
-- [ ] Represent money, pyramid tickets, held leg-betting tickets, and available
+- [x] Represent money, pyramid tickets, held leg-betting tickets, and available
       finish cards without adding rule transitions yet.
-- [ ] Keep spectator-tile coordinates in `BoardState`; derive whether a
+- [x] Keep spectator-tile coordinates in `BoardState`; derive whether a
       player's tile is placed instead of duplicating that fact in `PlayerState`.
-- [ ] Add tests for canonical ordering, invalid ownership, immutable updates,
+- [x] Document `GameState` as authoritative engine truth and defer
+      player-relative hidden-information masking to future observation encoders.
+- [x] Add tests for canonical ordering, invalid ownership, immutable updates,
       equality, and hashing.
 
 Acceptance criteria:

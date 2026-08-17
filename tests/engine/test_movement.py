@@ -10,6 +10,7 @@ from camel_up.engine import (
     DieId,
     DieRoll,
     GameState,
+    PlayerState,
     SpectatorTile,
     move_camel,
     position_of,
@@ -38,7 +39,8 @@ def _state_with_stacks(
             track_length=16,
             camel_positions=positions,
             spectator_tiles=spectator_tiles,
-        )
+        ),
+        players=tuple(PlayerState(player_id=index) for index in range(3)),
     )
 
 
