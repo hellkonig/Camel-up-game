@@ -5,6 +5,8 @@ import pytest
 from camel_up.engine import (
     CAMEL_ORDER,
     DIE_ORDER,
+    MIN_PLAYERS,
+    RACING_CAMEL_ORDER,
     BoardState,
     CamelId,
     CamelPosition,
@@ -25,7 +27,7 @@ def _fully_placed_positions() -> tuple[CamelPosition, ...]:
 
 
 def _players() -> tuple[PlayerState, ...]:
-    return tuple(PlayerState(player_id=index) for index in range(3))
+    return tuple(PlayerState(player_id=index) for index in range(MIN_PLAYERS))
 
 
 def test_identifier_orders_are_stable_engine_contracts() -> None:
@@ -48,6 +50,7 @@ def test_identifier_orders_are_stable_engine_contracts() -> None:
     )
 
     assert tuple(CAMEL_ORDER) == expected_camel_order
+    assert tuple(RACING_CAMEL_ORDER) == expected_camel_order[:5]
     assert tuple(DIE_ORDER) == expected_die_order
 
 

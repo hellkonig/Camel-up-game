@@ -31,12 +31,17 @@ class DieId(str, Enum):
     GREY = "grey"
 
 
-CAMEL_ORDER: Final = tuple(CamelId)
+RACING_CAMEL_ORDER: Final = (
+    CamelId.RED,
+    CamelId.BLUE,
+    CamelId.GREEN,
+    CamelId.YELLOW,
+    CamelId.PURPLE,
+)
+CAMEL_ORDER: Final = (*RACING_CAMEL_ORDER, CamelId.WHITE, CamelId.BLACK)
 DIE_ORDER: Final = tuple(DieId)
-RACING_CAMEL_ORDER: Final = CAMEL_ORDER[:-2]
 MIN_PLAYERS: Final = 3
 MAX_PLAYERS: Final = 8
-_LEG_BETTING_TICKET_VALUES: Final = frozenset({2, 3, 5})
 _CAMEL_INDEX: Final = MappingProxyType(
     {camel: index for index, camel in enumerate(CAMEL_ORDER)}
 )
@@ -90,7 +95,12 @@ class SpectatorTile:
 
 @dataclass(frozen=True, slots=True)
 class LegBettingTicket:
-    """A leg-scoped betting ticket held by one player."""
+    """A leg-scoped betting ticket held by one player.
+
+    Attributes:
+        camel: The racing camel backed by the ticket.
+        value: The ticket's printed payout when its camel leads the leg.
+    """
 
     camel: CamelId
     value: int
@@ -99,8 +109,15 @@ class LegBettingTicket:
         """Require a printed ticket from the racing-camel supply."""
         if self.camel not in RACING_CAMEL_ORDER:
             raise ValueError("leg betting tickets must show a racing camel")
-        if self.value not in _LEG_BETTING_TICKET_VALUES:
+        if self.value not in (2, 3, 5):
             raise ValueError("leg betting ticket value must be 2, 3, or 5")
+
+
+def _leg_betting_ticket_sort_key(
+    ticket: LegBettingTicket,
+) -> tuple[int, int]:
+    """Order tickets by camel, with higher-value tickets first per camel."""
+    return _CAMEL_INDEX[ticket.camel], -ticket.value
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,11 +132,20 @@ class PlayerState:
     descending printed value. Available finish cards form a canonical
     subsequence of :data:`RACING_CAMEL_ORDER`. Requiring these orders gives
     logically equivalent holdings identical equality and hashing behavior.
+
+    Attributes:
+        player_id: Stable seat index, beginning at zero.
+        money: Egyptian Pounds currently owned by the player.
+        pyramid_ticket_count: Leg-scoped pyramid tickets collected by rolling;
+            each is worth one Egyptian Pound during leg scoring.
+        leg_betting_tickets: Leg-scoped betting tickets currently held, ordered
+            by camel and then by descending printed value.
+        available_finish_cards: Secret finish cards the player has not played.
     """
 
     player_id: int
     money: int = 3
-    pyramid_tickets: int = 0
+    pyramid_ticket_count: int = 0
     leg_betting_tickets: tuple[LegBettingTicket, ...] = ()
     available_finish_cards: tuple[CamelId, ...] = RACING_CAMEL_ORDER
 
@@ -129,34 +155,28 @@ class PlayerState:
             raise ValueError("player_id must be non-negative")
         if self.money < 0:
             raise ValueError("money must be non-negative")
-        if self.pyramid_tickets < 0:
-            raise ValueError("pyramid_tickets must be non-negative")
+        if self.pyramid_ticket_count < 0:
+            raise ValueError("pyramid_ticket_count must be non-negative")
 
         expected_tickets = tuple(
             sorted(
                 self.leg_betting_tickets,
-                key=lambda ticket: (_CAMEL_INDEX[ticket.camel], -ticket.value),
+                key=_leg_betting_ticket_sort_key,
             )
         )
         if self.leg_betting_tickets != expected_tickets:
             raise ValueError("leg_betting_tickets must use canonical order")
 
-        if len(self.available_finish_cards) != len(
-            set(self.available_finish_cards)
-        ):
-            raise ValueError("available_finish_cards cannot contain duplicates")
-        if any(
-            camel not in RACING_CAMEL_ORDER
-            for camel in self.available_finish_cards
-        ):
-            raise ValueError("available_finish_cards must show racing camels")
         expected_cards = tuple(
             camel
             for camel in RACING_CAMEL_ORDER
             if camel in self.available_finish_cards
         )
         if self.available_finish_cards != expected_cards:
-            raise ValueError("available_finish_cards must use canonical order")
+            raise ValueError(
+                "available_finish_cards must contain unique racing camels "
+                "in canonical order"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -292,8 +312,7 @@ class GameState:
         if not 0 <= self.current_player < len(self.players):
             raise ValueError("current_player must identify a player in players")
         if any(
-            tile.player_id >= len(self.players)
-            for tile in self.board.spectator_tiles
+            tile.player_id >= len(self.players) for tile in self.board.spectator_tiles
         ):
             raise ValueError("spectator tiles must belong to a player in players")
         if len(self.remaining_dice) != len(set(self.remaining_dice)):
@@ -339,14 +358,10 @@ def spectator_tile_for_player(
     state: GameState,
     player_id: int,
 ) -> SpectatorTile | None:
-    """Return a player's placed spectator tile without duplicating ownership."""
+    """Return a player's placed tile, or ``None`` when it is available."""
     if not 0 <= player_id < len(state.players):
         raise ValueError("player_id must identify a player in players")
     return next(
-        (
-            tile
-            for tile in state.board.spectator_tiles
-            if tile.player_id == player_id
-        ),
+        (tile for tile in state.board.spectator_tiles if tile.player_id == player_id),
         None,
     )

@@ -4,6 +4,7 @@ import pytest
 
 from camel_up.engine import (
     CAMEL_ORDER,
+    MIN_PLAYERS,
     BoardState,
     CamelId,
     CamelPosition,
@@ -40,7 +41,7 @@ def _state_with_stacks(
             camel_positions=positions,
             spectator_tiles=spectator_tiles,
         ),
-        players=tuple(PlayerState(player_id=index) for index in range(3)),
+        players=tuple(PlayerState(player_id=index) for index in range(MIN_PLAYERS)),
     )
 
 

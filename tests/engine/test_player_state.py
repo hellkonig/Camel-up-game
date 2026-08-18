@@ -27,7 +27,7 @@ def test_pre_setup_creates_canonical_players_with_starting_assets() -> None:
         range(MIN_PLAYERS)
     )
     assert all(player.money == 3 for player in state.players)
-    assert all(player.pyramid_tickets == 0 for player in state.players)
+    assert all(player.pyramid_ticket_count == 0 for player in state.players)
     assert all(not player.leg_betting_tickets for player in state.players)
     assert all(
         player.available_finish_cards == RACING_CAMEL_ORDER for player in state.players
@@ -104,24 +104,19 @@ def test_spectator_tile_placement_is_derived_from_board_state() -> None:
         spectator_tile_for_player(state, MIN_PLAYERS)
 
 
-@pytest.mark.parametrize(
-    ("field", "value", "message"),
-    [
-        ("player_id", -1, "player_id"),
-        ("money", -1, "money"),
-        ("pyramid_tickets", -1, "pyramid_tickets"),
-    ],
-)
-def test_player_rejects_negative_scalar_resources(
-    field: str,
-    value: int,
-    message: str,
-) -> None:
-    values = {"player_id": 0, "money": 3, "pyramid_tickets": 0}
-    values[field] = value
+def test_player_rejects_negative_player_id() -> None:
+    with pytest.raises(ValueError, match="player_id"):
+        PlayerState(player_id=-1)
 
-    with pytest.raises(ValueError, match=message):
-        PlayerState(**values)
+
+def test_player_rejects_negative_money() -> None:
+    with pytest.raises(ValueError, match="money"):
+        PlayerState(player_id=0, money=-1)
+
+
+def test_player_rejects_negative_pyramid_ticket_count() -> None:
+    with pytest.raises(ValueError, match="pyramid_ticket_count"):
+        PlayerState(player_id=0, pyramid_ticket_count=-1)
 
 
 @pytest.mark.parametrize(
@@ -145,7 +140,7 @@ def test_leg_betting_ticket_rejects_crazy_camels_and_unknown_values() -> None:
         LegBettingTicket(camel=CamelId.RED, value=4)
 
 
-def test_player_requires_canonical_leg_betting_ticket_order() -> None:
+def test_player_accepts_tickets_ordered_by_camel_then_descending_value() -> None:
     red_five = LegBettingTicket(camel=CamelId.RED, value=5)
     red_two = LegBettingTicket(camel=CamelId.RED, value=2)
     blue_three = LegBettingTicket(camel=CamelId.BLUE, value=3)
@@ -156,10 +151,27 @@ def test_player_requires_canonical_leg_betting_ticket_order() -> None:
     )
 
     assert player.leg_betting_tickets == (red_five, red_two, blue_three)
+
+
+def test_player_rejects_ticket_camel_order() -> None:
+    red_five = LegBettingTicket(camel=CamelId.RED, value=5)
+    blue_three = LegBettingTicket(camel=CamelId.BLUE, value=3)
+
     with pytest.raises(ValueError, match="canonical order"):
         PlayerState(
             player_id=0,
-            leg_betting_tickets=(blue_three, red_two, red_five),
+            leg_betting_tickets=(blue_three, red_five),
+        )
+
+
+def test_player_rejects_ascending_ticket_values_for_one_camel() -> None:
+    red_five = LegBettingTicket(camel=CamelId.RED, value=5)
+    red_two = LegBettingTicket(camel=CamelId.RED, value=2)
+
+    with pytest.raises(ValueError, match="canonical order"):
+        PlayerState(
+            player_id=0,
+            leg_betting_tickets=(red_two, red_five),
         )
 
 
@@ -170,6 +182,7 @@ def test_player_requires_canonical_leg_betting_ticket_order() -> None:
         (CamelId.RED, CamelId.WHITE),
         (CamelId.BLUE, CamelId.RED),
     ],
+    ids=["duplicate", "crazy-camel", "noncanonical-order"],
 )
 def test_player_rejects_invalid_available_finish_cards(
     cards: tuple[CamelId, ...],
@@ -191,14 +204,14 @@ def test_equivalent_player_states_are_hashable_and_replaceable() -> None:
     player = PlayerState(
         player_id=0,
         money=6,
-        pyramid_tickets=2,
+        pyramid_ticket_count=2,
         leg_betting_tickets=(ticket,),
         available_finish_cards=(CamelId.RED, CamelId.BLUE),
     )
     equivalent = PlayerState(
         player_id=0,
         money=6,
-        pyramid_tickets=2,
+        pyramid_ticket_count=2,
         leg_betting_tickets=(ticket,),
         available_finish_cards=(CamelId.RED, CamelId.BLUE),
     )

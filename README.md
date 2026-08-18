@@ -88,13 +88,17 @@ Spectator-tile movement effects are deferred to a later engine milestone;
 
 `GameState.pre_setup()` creates the default three-player game and accepts a
 `player_count` from three through eight. Each immutable `PlayerState` owns its
-money, pyramid tickets, held leg-betting tickets, and remaining finish cards;
-spectator-tile placement is derived from `BoardState` instead of stored twice.
+money, pyramid-ticket count, held leg-betting tickets, and remaining finish
+cards; spectator-tile placement is derived from `BoardState` instead of stored
+twice. Display names and whether a seat is controlled by a person or an agent
+are session concerns keyed by `player_id`; they do not belong in rule state.
 
 `GameState` is authoritative engine truth, not an observation that should be
 passed directly to an RL policy. Future environment adapters will encode a
 player-relative observation and mask information that the observing player
-cannot legally know, including opponents' available finish cards. Keeping that
-projection outside the engine lets deterministic simulation, self-play, and a
+cannot legally know, including opponents' available finish cards. That encoder
+can convert the semantic state into fixed-shape NumPy arrays and legal-action
+masks expected by training libraries. Keeping the array projection and NumPy
+dependency outside the engine lets deterministic simulation, self-play, and a
 live play-assistant share the same rule state without leaking hidden
 information to an agent.
