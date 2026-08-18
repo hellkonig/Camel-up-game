@@ -104,19 +104,28 @@ def test_spectator_tile_placement_is_derived_from_board_state() -> None:
         spectator_tile_for_player(state, MIN_PLAYERS)
 
 
-def test_player_rejects_negative_player_id() -> None:
-    with pytest.raises(ValueError, match="player_id"):
-        PlayerState(player_id=-1)
-
-
-def test_player_rejects_negative_money() -> None:
-    with pytest.raises(ValueError, match="money"):
-        PlayerState(player_id=0, money=-1)
-
-
-def test_player_rejects_negative_pyramid_ticket_count() -> None:
-    with pytest.raises(ValueError, match="pyramid_ticket_count"):
-        PlayerState(player_id=0, pyramid_ticket_count=-1)
+@pytest.mark.parametrize(
+    ("player_kwargs", "message"),
+    [
+        pytest.param({"player_id": -1}, "player_id", id="player-id"),
+        pytest.param(
+            {"player_id": 0, "money": -1},
+            "money",
+            id="money",
+        ),
+        pytest.param(
+            {"player_id": 0, "pyramid_ticket_count": -1},
+            "pyramid_ticket_count",
+            id="pyramid-ticket-count",
+        ),
+    ],
+)
+def test_player_rejects_negative_scalar_resources(
+    player_kwargs: dict[str, int],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        PlayerState(**player_kwargs)
 
 
 @pytest.mark.parametrize(

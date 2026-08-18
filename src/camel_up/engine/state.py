@@ -31,6 +31,7 @@ class DieId(str, Enum):
     GREY = "grey"
 
 
+# Stable identity/serialization order; this is unrelated to current race ranking.
 RACING_CAMEL_ORDER: Final = (
     CamelId.RED,
     CamelId.BLUE,
@@ -116,7 +117,7 @@ class LegBettingTicket:
 def _leg_betting_ticket_sort_key(
     ticket: LegBettingTicket,
 ) -> tuple[int, int]:
-    """Order tickets by camel, with higher-value tickets first per camel."""
+    """Order by ``RACING_CAMEL_ORDER``, then by descending ticket value."""
     return _CAMEL_INDEX[ticket.camel], -ticket.value
 
 
@@ -128,8 +129,9 @@ class PlayerState:
     Observation encoders must mask information an observing player cannot
     legally know, including opponents' available finish cards.
 
-    Leg betting tickets are canonicalized by racing-camel order and then by
-    descending printed value. Available finish cards form a canonical
+    Leg betting tickets are canonicalized by racing-camel identity order (red,
+    blue, green, yellow, purple) and then by descending printed value. This
+    order is unrelated to race ranking. Available finish cards form a canonical
     subsequence of :data:`RACING_CAMEL_ORDER`. Requiring these orders gives
     logically equivalent holdings identical equality and hashing behavior.
 
