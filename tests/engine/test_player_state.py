@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import replace
 
 import pytest
@@ -105,27 +106,31 @@ def test_spectator_tile_placement_is_derived_from_board_state() -> None:
 
 
 @pytest.mark.parametrize(
-    ("player_kwargs", "message"),
+    ("create_player", "message"),
     [
-        pytest.param({"player_id": -1}, "player_id", id="player-id"),
         pytest.param(
-            {"player_id": 0, "money": -1},
+            lambda: PlayerState(player_id=-1),
+            "player_id",
+            id="player-id",
+        ),
+        pytest.param(
+            lambda: PlayerState(player_id=0, money=-1),
             "money",
             id="money",
         ),
         pytest.param(
-            {"player_id": 0, "pyramid_ticket_count": -1},
+            lambda: PlayerState(player_id=0, pyramid_ticket_count=-1),
             "pyramid_ticket_count",
             id="pyramid-ticket-count",
         ),
     ],
 )
 def test_player_rejects_negative_scalar_resources(
-    player_kwargs: dict[str, int],
+    create_player: Callable[[], PlayerState],
     message: str,
 ) -> None:
     with pytest.raises(ValueError, match=message):
-        PlayerState(**player_kwargs)
+        create_player()
 
 
 @pytest.mark.parametrize(
