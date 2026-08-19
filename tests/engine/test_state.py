@@ -5,11 +5,14 @@ import pytest
 from camel_up.engine import (
     CAMEL_ORDER,
     DIE_ORDER,
+    MIN_PLAYERS,
+    RACING_CAMEL_ORDER,
     BoardState,
     CamelId,
     CamelPosition,
     DieId,
     GameState,
+    PlayerState,
     SpectatorTile,
     carried_camels,
     position_of,
@@ -21,6 +24,10 @@ def _fully_placed_positions() -> tuple[CamelPosition, ...]:
     return tuple(
         CamelPosition(space=10 + index, level=0) for index in range(len(CAMEL_ORDER))
     )
+
+
+def _players() -> tuple[PlayerState, ...]:
+    return tuple(PlayerState(player_id=index) for index in range(MIN_PLAYERS))
 
 
 def test_identifier_orders_are_stable_engine_contracts() -> None:
@@ -43,6 +50,7 @@ def test_identifier_orders_are_stable_engine_contracts() -> None:
     )
 
     assert tuple(CAMEL_ORDER) == expected_camel_order
+    assert tuple(RACING_CAMEL_ORDER) == expected_camel_order[:5]
     assert tuple(DIE_ORDER) == expected_die_order
 
 
@@ -208,6 +216,7 @@ def test_remaining_dice_use_canonical_order() -> None:
     with pytest.raises(ValueError, match="canonical order"):
         GameState(
             board=BoardState.empty(),
+            players=_players(),
             remaining_dice=(DieId.BLUE, DieId.RED),
         )
 
@@ -239,9 +248,9 @@ def test_finish_zone_requires_terminal_game_state() -> None:
     )
 
     with pytest.raises(ValueError, match="finish zone requires a terminal game"):
-        GameState(board=board)
+        GameState(board=board, players=_players())
 
-    assert GameState(board=board, terminal=True).terminal
+    assert GameState(board=board, players=_players(), terminal=True).terminal
 
 
 def test_legacy_components_preserve_prototype_stack_behavior() -> None:

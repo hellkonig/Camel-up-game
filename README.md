@@ -83,3 +83,11 @@ the grey die's crazy-camel exceptions. Crossing either finish boundary places
 the moved unit in the corresponding finish zone and returns a terminal state.
 Spectator-tile movement effects are deferred to a later engine milestone;
 `move_camel` currently rejects a move that would require one.
+
+## Agent Compatibility
+
+`GameState` is immutable, deterministic engine state shared by CLI, search, and
+RL consumers. Future environment adapters can encode player-relative NumPy
+observations and legal-action masks while hiding private opponent information.
+Display names and human or agent controller selection remain outside the rule
+engine, keyed by stable player IDs.
