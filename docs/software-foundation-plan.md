@@ -327,10 +327,13 @@ Tasks:
 
 - [x] Add an immutable, hashable `PlayerState` and store players in
       `GameState.players` using canonical `player_id` order.
+- [x] Enforce the supported three-to-eight-player range and have
+      `GameState.pre_setup()` create the canonical player tuple, defaulting to
+      three players.
 - [x] Define the relationship between `current_player` and the canonical player
       tuple, including constructor validation.
-- [x] Represent money, pyramid tickets, held leg-betting tickets, and available
-      finish cards without adding rule transitions yet.
+- [x] Represent money, pyramid-ticket counts, held leg-betting tickets, and
+      available finish cards without adding rule transitions yet.
 - [x] Keep spectator-tile coordinates in `BoardState`; derive whether a
       player's tile is placed instead of duplicating that fact in `PlayerState`.
 - [x] Document `GameState` as authoritative engine truth and defer
