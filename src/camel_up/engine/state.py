@@ -78,7 +78,11 @@ class CamelPosition:
 
 @dataclass(frozen=True, slots=True)
 class SpectatorTile:
-    """A player's spectator tile and its movement effect."""
+    """A placed spectator tile's owner, location, and movement effect.
+
+    This type records canonical tile state. Tile-placement actions, landing
+    effects, owner rewards, and leg resets belong to later rule transitions.
+    """
 
     player_id: int
     space: int
@@ -363,7 +367,7 @@ def spectator_tile_for_player(
     """Return a player's placed tile, or ``None`` when it is available."""
     if not 0 <= player_id < len(state.players):
         raise ValueError("player_id must identify a player in players")
-    return next(
-        (tile for tile in state.board.spectator_tiles if tile.player_id == player_id),
-        None,
-    )
+    for tile in state.board.spectator_tiles:
+        if tile.player_id == player_id:
+            return tile
+    return None
