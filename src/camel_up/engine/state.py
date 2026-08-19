@@ -367,7 +367,7 @@ def spectator_tile_for_player(
     """Return a player's placed tile, or ``None`` when it is available."""
     if not 0 <= player_id < len(state.players):
         raise ValueError("player_id must identify a player in players")
-    for tile in state.board.spectator_tiles:
-        if tile.player_id == player_id:
-            return tile
-    return None
+    return next(
+        (tile for tile in state.board.spectator_tiles if tile.player_id == player_id),
+        None,
+    )
