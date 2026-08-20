@@ -620,7 +620,7 @@ The recommended first milestone is intentionally small and starts with CI:
 - [x] Add canonical `CamelPosition`, `BoardState`, and `GameState` types while
       isolating the temporary mutable CLI adapter.
 - [ ] Update imports and CLI.
-- [ ] Expand Ruff and MyPy to check `src`.
+- [x] Expand Ruff and MyPy to check `src`.
 - [x] Add focused tests for stack movement.
 - [x] Add focused tests for deterministic dice rolling and atomic setup.
 
