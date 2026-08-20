@@ -437,8 +437,8 @@ Tasks:
 - [ ] Add or update CLI smoke tests and verify `uv run camel-up` still starts.
 - [ ] Remove `components.py`, root-level `main.py`, and
       `py-modules = ["components", "main"]` after all imports have migrated.
-- [ ] Configure Ruff to check `src` and `tests`.
-- [ ] Configure MyPy to check `src/camel_up` and `tests` with incremental
+- [x] Configure Ruff to check `src` and `tests`.
+- [x] Configure MyPy to check `src/camel_up` and `tests` with incremental
       strictness.
 - [ ] Update this plan and README examples to reflect the final package paths.
 
@@ -461,16 +461,16 @@ migration so it does not need to be rewritten around incomplete engine APIs.
 
 ## Phase 2: Tooling Baseline
 
-Status: `Todo`
+Status: `Done`
 
 Goal: Make formatting, linting, type checking, and tests cover production code.
 
 Tasks:
 
-- [ ] Configure Ruff to check `src` and `tests`.
-- [ ] Configure MyPy to check `src/camel_up` and `tests`.
-- [ ] Keep strictness incremental so refactors remain manageable.
-- [ ] Ensure all documented commands work:
+- [x] Configure Ruff to check `src` and `tests`.
+- [x] Configure MyPy to check `src/camel_up` and `tests`.
+- [x] Keep strictness incremental so refactors remain manageable.
+- [x] Ensure all documented commands work:
 
 ```bash
 uv run python -m pytest
@@ -620,7 +620,7 @@ The recommended first milestone is intentionally small and starts with CI:
 - [x] Add canonical `CamelPosition`, `BoardState`, and `GameState` types while
       isolating the temporary mutable CLI adapter.
 - [ ] Update imports and CLI.
-- [ ] Expand Ruff and MyPy to check `src`.
+- [x] Expand Ruff and MyPy to check `src`.
 - [x] Add focused tests for stack movement.
 - [x] Add focused tests for deterministic dice rolling and atomic setup.
 
