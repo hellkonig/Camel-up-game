@@ -84,6 +84,33 @@ the moved unit in the corresponding finish zone and returns a terminal state.
 Spectator-tile movement effects are deferred to a later engine milestone;
 `move_camel` currently rejects a move that would require one.
 
+## Deterministic Betting Transitions
+
+Betting functions transfer tickets and finish cards without mutating the input
+state or applying payouts:
+
+```python
+from camel_up.engine import (
+    CamelId,
+    FinalBetTarget,
+    place_final_bet,
+    take_leg_betting_ticket,
+)
+
+state = take_leg_betting_ticket(state, player_id=0, camel=CamelId.RED)
+state = place_final_bet(
+    state,
+    player_id=1,
+    camel=CamelId.GREEN,
+    target=FinalBetTarget.WINNER,
+)
+```
+
+Shared ticket supplies and ordered winner and loser records are authoritative
+parts of `GameState`. Player-held tickets and unused finish cards remain in
+`PlayerState`. Bet placement does not change money; focused scoring transitions
+will settle those assets in later engine pull requests.
+
 ## Agent Compatibility
 
 `GameState` is immutable, deterministic engine state shared by CLI, search, and
