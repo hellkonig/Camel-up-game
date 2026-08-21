@@ -355,46 +355,161 @@ Review focus:
 - State ownership, canonical ordering, avoiding duplicated facts, and future
   observation encoding.
 
-#### PR 5: `feat: add betting and scoring rules`
+The original betting-and-scoring pull request crossed three independently
+reviewable rule boundaries and was likely to exceed the target size. Implement
+it as PRs 5a through 5c so state ownership stabilizes before either settlement
+path consumes it.
 
-Suggested branch: `feat/betting-scoring-rules`
+Rule contract for this sequence:
 
-Goal: Implement deterministic betting and settlement rules against the stable
-board and player state models.
+- Use the [Camel Up Second Edition rulebook][camel-up-second-edition-rules] as
+  the source of truth for base-game betting and settlement behavior.
+- Implement the Camel Up Second Edition base-game supplies and payouts. Each
+  racing camel begins a leg with betting tickets worth 5, 3, 2, and 2, in that
+  take order.
+- Rank racing camels by track progress and stack level; a racing camel higher
+  in a stack is ahead. A racing camel carried across the backward finish line
+  by a crazy camel is least advanced.
+- A leg ticket pays its printed value for first place, 1 Egyptian Pound for
+  second place, and loses 1 Egyptian Pound otherwise. Each pyramid ticket pays
+  1 Egyptian Pound.
+- Correct final bets, considered in their placement order without incorrect
+  bets consuming a payout position, pay 8, 5, 3, and 2 Egyptian Pounds; every
+  later correct bet pays 1. Each incorrect final bet loses 1.
+- A player's balance never falls below zero.
+
+[camel-up-second-edition-rules]: https://www.lookout-spiele.de/upload/en_camelup.html_CamelUp_PZE30070_Rules_EN_WEB_240305.pdf
+
+#### PR 5a: `feat: add betting state and placement rules`
+
+Status: `Done`
+
+Suggested branch: `feat/betting-rules`
+
+Goal: Represent shared betting state and support deterministic, immutable bet
+placement without implementing settlement.
 
 Tasks:
 
-- [ ] Add canonical shared betting supplies and ordered final-bet records to
-      `GameState` without duplicating player-owned data.
-- [ ] Add `engine.betting` for leg tickets, ordered final bets, ticket
-      availability, and immutable bet placement.
-- [ ] Add `engine.scoring` for leg payouts, final winner and loser payouts, and
-      money updates.
-- [ ] Define leg-owned player asset resets without resetting race-long state.
-- [ ] Keep betting and scoring functions deterministic and free of turn or CLI
-      orchestration.
-- [ ] Add focused tests for ticket exhaustion, bet ordering, payouts, ties where
-      applicable, and leg reset behavior.
+- [x] Add canonical shared leg-ticket supplies and separate ordered final
+      winner and loser bet records to `GameState`.
+- [x] Keep held leg tickets and unused finish cards in `PlayerState`; do not
+      duplicate player-owned data in shared state.
+- [x] Add `engine.betting` functions that take a leg ticket or place a finish
+      card into the requested final-bet record.
+- [x] Validate player identity, racing-camel identity, ticket availability, and
+      finish-card availability while leaving current-turn enforcement to the
+      future action layer.
+- [x] Preserve canonical ordering and hashability across all betting state.
+- [x] Add focused tests for ticket take order and exhaustion, final-bet order,
+      unavailable finish cards, invalid input, and immutable replacement.
 
 Acceptance criteria:
 
-- Betting and scoring transitions preserve immutable state ownership.
-- Ordered final bets and player balances are reproducible from the same state
-  and action history.
-- No CLI, agent, or RL code duplicates payout rules.
+- Every ticket and finish card has one authoritative location in a state.
+- Replaying the same ordered bet placements produces equal, hash-equivalent
+  states and final-bet records.
+- Bet placement contains no scoring, turn advancement, or CLI behavior.
 - All documented checks pass.
 
 Review focus:
 
-- Public versus player-owned state, payout correctness, ordered bets, and leg
-  reset boundaries.
+- Public versus player-owned state, canonical ordering, validation boundaries,
+  and immutable ownership transfer.
+
+Non-goals:
+
+- Camel ranking, payouts, leg resets, legal actions, turns, CLI migration,
+  agents, and RL environments.
+
+#### PR 5b: `feat: add leg ranking and settlement`
+
+Suggested branch: `feat/leg-scoring`
+
+Goal: Score one leg deterministically using the stable board, player, and
+betting state from PR 5a.
+
+Tasks:
+
+- [ ] Add `engine.scoring` racing-camel ordering that excludes crazy camels and
+      handles shared stacks and both finish zones.
+- [ ] Add immutable leg settlement for printed leg-ticket payouts, second-place
+      payouts, losing-ticket penalties, and pyramid-ticket income.
+- [ ] Clear held leg tickets and pyramid-ticket counts and restore the canonical
+      shared leg-ticket supplies after settlement.
+- [ ] Preserve race-long state, including money after settlement, final-bet
+      records, unused finish cards, camel positions, and terminal status.
+- [ ] Leave dice reset, spectator-tile return, leg-number advancement, and
+      current-player advancement to turn orchestration.
+- [ ] Add focused tests for stack-based first and second place, crazy-camel
+      interactions, every payout category, zero-balance flooring, and betting
+      asset reset boundaries.
+
+Acceptance criteria:
+
+- The same board and player holdings always produce the same ranking and
+  balances.
+- Leg settlement resets only betting-related leg assets.
+- The scoring module has no turn, random, or CLI dependencies.
+- All documented checks pass.
+
+Review focus:
+
+- Racing-camel ordering, payout arithmetic, non-negative balances, and the
+  boundary between settlement and full leg orchestration.
+
+Non-goals:
+
+- Final race settlement, dice or tile reset, legal actions, turns, CLI
+  migration, agents, and RL environments.
+
+#### PR 5c: `feat: add final race settlement`
+
+Suggested branch: `feat/final-race-scoring`
+
+Goal: Settle ordered final winner and loser bets for a terminal race using the
+ranking and betting contracts established by PRs 5a and 5b.
+
+Tasks:
+
+- [ ] Determine the winning and losing racing camels from the canonical race
+      order, including same-stack and backward-finish cases.
+- [ ] Score final winner and loser records independently in placement order
+      using the canonical 8, 5, 3, 2, then 1 payout sequence.
+- [ ] Apply incorrect-bet penalties without allowing negative balances.
+- [ ] Record final-settlement completion in `GameState`, reject non-terminal or
+      already-settled input, and preserve immutable bet history for replay and
+      audit.
+- [ ] Add focused tests for ordered correct payouts, incorrect bets, more than
+      four correct bets, same-stack winner and loser selection, backward finish,
+      and deterministic balance updates.
+
+Acceptance criteria:
+
+- Ordered final bets and resulting balances are reproducible from the same
+  terminal state.
+- Winner and loser bets use one shared ranking contract and cannot disagree
+  about race order.
+- Final settlement cannot credit the same terminal state more than once.
+- Final settlement contains no turn or CLI behavior.
+- All documented checks pass.
+
+Review focus:
+
+- Terminal-state validation, ordered payout correctness, winner and loser
+  selection, and non-negative balances.
+
+Non-goals:
+
+- Action generation, turn orchestration, CLI migration, agents, and RL
+  environments.
 
 #### PR 6: `feat: add legal actions and turn progression`
 
 Suggested branch: `feat/legal-actions-turns`
 
-Goal: Compose the completed rules behind one deterministic action and turn
-interface for all future consumers.
+Goal: Compose the completed rules from PR 5c behind one deterministic action
+and turn interface for all future consumers.
 
 Tasks:
 
