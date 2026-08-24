@@ -16,7 +16,7 @@ from camel_up.engine.movement import move_camel
 from camel_up.engine.state import (
     CAMEL_ORDER,
     DIE_ORDER,
-    LEG_BETTING_TICKET_VALUES,
+    LEG_BETTING_TICKET_STACK_VALUES,
     MAX_PLAYERS,
     MIN_PLAYERS,
     RACING_CAMEL_ORDER,
@@ -39,7 +39,7 @@ from camel_up.engine.state import (
 __all__ = [
     "CAMEL_ORDER",
     "DIE_ORDER",
-    "LEG_BETTING_TICKET_VALUES",
+    "LEG_BETTING_TICKET_STACK_VALUES",
     "MAX_PLAYERS",
     "MIN_PLAYERS",
     "RACING_CAMEL_ORDER",

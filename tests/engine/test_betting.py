@@ -5,7 +5,7 @@ from typing import cast
 import pytest
 
 from camel_up.engine import (
-    LEG_BETTING_TICKET_VALUES,
+    LEG_BETTING_TICKET_STACK_VALUES,
     MIN_PLAYERS,
     RACING_CAMEL_ORDER,
     CamelId,
@@ -30,21 +30,33 @@ def _tickets_for_camel(
     state: GameState,
     camel: CamelId,
 ) -> tuple[LegBettingTicket, ...]:
-    return tuple(
-        ticket
-        for ticket in state.available_leg_betting_tickets
-        if ticket.camel is camel
-    )
+    return state.available_leg_betting_tickets[RACING_CAMEL_ORDER.index(camel)]
 
 
-def test_pre_setup_contains_the_canonical_shared_ticket_supply() -> None:
+def test_pre_setup_contains_canonical_bottom_to_top_ticket_stacks() -> None:
     state = GameState.pre_setup()
 
     for camel in RACING_CAMEL_ORDER:
         tickets = _tickets_for_camel(state, camel)
 
-        assert tuple(ticket.value for ticket in tickets) == (LEG_BETTING_TICKET_VALUES)
-        assert available_leg_betting_ticket(state, camel) == tickets[0]
+        assert tuple(ticket.value for ticket in tickets) == (
+            LEG_BETTING_TICKET_STACK_VALUES
+        )
+        assert all(ticket.camel is camel for ticket in tickets)
+
+
+def test_available_leg_betting_ticket_returns_top_ticket_or_none() -> None:
+    state = _setup_state()
+
+    assert available_leg_betting_ticket(state, CamelId.GREEN) == LegBettingTicket(
+        camel=CamelId.GREEN,
+        value=5,
+    )
+
+    for _ in LEG_BETTING_TICKET_STACK_VALUES:
+        state = take_leg_betting_ticket(state, 0, CamelId.GREEN)
+
+    assert available_leg_betting_ticket(state, CamelId.GREEN) is None
 
 
 def test_taking_leg_ticket_transfers_the_highest_value_immutably() -> None:
@@ -57,7 +69,7 @@ def test_taking_leg_ticket_transfers_the_highest_value_immutably() -> None:
     )
     assert tuple(
         ticket.value for ticket in _tickets_for_camel(updated, CamelId.GREEN)
-    ) == (3, 2, 2)
+    ) == (2, 2, 3)
     assert available_leg_betting_ticket(updated, CamelId.GREEN) == LegBettingTicket(
         camel=CamelId.GREEN,
         value=3,
@@ -65,7 +77,7 @@ def test_taking_leg_ticket_transfers_the_highest_value_immutably() -> None:
     assert state.players[1].leg_betting_tickets == ()
     assert (
         tuple(ticket.value for ticket in _tickets_for_camel(state, CamelId.GREEN))
-        == LEG_BETTING_TICKET_VALUES
+        == LEG_BETTING_TICKET_STACK_VALUES
     )
     assert updated.players[1].money == state.players[1].money
 
@@ -74,7 +86,8 @@ def test_leg_tickets_follow_take_order_and_then_exhaust() -> None:
     state = _setup_state()
 
     taken_values: list[int] = []
-    for draw_index, _ in enumerate(LEG_BETTING_TICKET_VALUES):
+    expected_take_order = tuple(reversed(LEG_BETTING_TICKET_STACK_VALUES))
+    for draw_index, _ in enumerate(expected_take_order):
         ticket = available_leg_betting_ticket(state, CamelId.RED)
         assert ticket is not None
         taken_values.append(ticket.value)
@@ -84,7 +97,7 @@ def test_leg_tickets_follow_take_order_and_then_exhaust() -> None:
             camel=CamelId.RED,
         )
 
-    assert taken_values == list(LEG_BETTING_TICKET_VALUES)
+    assert taken_values == list(expected_take_order)
     assert available_leg_betting_ticket(state, CamelId.RED) is None
     with pytest.raises(ValueError, match="no leg betting ticket"):
         take_leg_betting_ticket(state, player_id=0, camel=CamelId.RED)
@@ -212,32 +225,33 @@ def test_betting_rejects_inactive_game_states(
 
 def test_game_rejects_noncanonical_available_ticket_order() -> None:
     state = GameState.pre_setup()
-    tickets = state.available_leg_betting_tickets
+    stacks = state.available_leg_betting_tickets
+    red_stack = stacks[0]
+    noncanonical_red_stack = (*red_stack[:2], red_stack[3], red_stack[2])
 
-    with pytest.raises(ValueError, match="canonical order"):
+    with pytest.raises(ValueError, match="canonical stacks"):
         replace(
             state,
-            available_leg_betting_tickets=(tickets[1], tickets[0], *tickets[2:]),
+            available_leg_betting_tickets=(noncanonical_red_stack, *stacks[1:]),
         )
 
 
 def test_game_rejects_missing_or_duplicated_leg_tickets() -> None:
     state = GameState.pre_setup()
+    stacks = state.available_leg_betting_tickets
 
     with pytest.raises(ValueError, match="conserve the initial supply"):
         replace(
             state,
-            available_leg_betting_tickets=state.available_leg_betting_tickets[1:],
+            available_leg_betting_tickets=(stacks[0][:-1], *stacks[1:]),
         )
 
+    player = replace(
+        state.players[0],
+        leg_betting_tickets=(LegBettingTicket(camel=CamelId.RED, value=5),),
+    )
     with pytest.raises(ValueError, match="conserve the initial supply"):
-        replace(
-            state,
-            available_leg_betting_tickets=(
-                state.available_leg_betting_tickets[0],
-                *state.available_leg_betting_tickets,
-            ),
-        )
+        replace(state, players=(player, *state.players[1:]))
 
 
 def test_game_rejects_finish_card_missing_from_both_locations() -> None:
@@ -251,7 +265,7 @@ def test_game_rejects_finish_card_missing_from_both_locations() -> None:
         replace(state, players=(player, *state.players[1:]))
 
 
-def test_game_rejects_duplicated_or_unknown_final_bets() -> None:
+def test_game_rejects_finish_card_in_both_final_records() -> None:
     state = place_final_bet(
         _setup_state(),
         player_id=0,
@@ -262,6 +276,10 @@ def test_game_rejects_duplicated_or_unknown_final_bets() -> None:
 
     with pytest.raises(ValueError, match="conserve one card"):
         replace(state, final_loser_bets=(bet,))
+
+
+def test_game_rejects_final_bet_for_player_outside_roster() -> None:
+    state = _setup_state()
 
     with pytest.raises(ValueError, match="belong to a player"):
         replace(

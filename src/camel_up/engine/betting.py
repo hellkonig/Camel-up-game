@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from camel_up.engine.state import (
+    _CAMEL_INDEX,
     RACING_CAMEL_ORDER,
     CamelId,
     FinalBet,
@@ -20,16 +21,21 @@ def available_leg_betting_ticket(
     state: GameState,
     camel: CamelId,
 ) -> LegBettingTicket | None:
-    """Return the next available leg ticket for ``camel``, if one remains."""
-    _validate_racing_camel(camel)
-    return next(
-        (
-            ticket
-            for ticket in state.available_leg_betting_tickets
-            if ticket.camel is camel
-        ),
-        None,
-    )
+    """Return the top available leg ticket for a racing camel.
+
+    Args:
+        state: Current immutable game state.
+        camel: Racing camel whose ticket stack should be queried.
+
+    Returns:
+        The top ticket, or ``None`` when that camel's stack is empty.
+
+    Raises:
+        ValueError: If ``camel`` identifies a crazy camel.
+    """
+    camel_index = _racing_camel_index(camel)
+    ticket_stack = state.available_leg_betting_tickets[camel_index]
+    return ticket_stack[-1] if ticket_stack else None
 
 
 def take_leg_betting_ticket(
@@ -41,17 +47,28 @@ def take_leg_betting_ticket(
 
     This rule transition validates betting-specific availability but does not
     enforce whose turn it is. The future action layer owns turn legality.
+
+    Args:
+        state: Active game state before the bet.
+        player_id: Stable identity of the player taking the ticket.
+        camel: Racing camel backed by the requested ticket.
+
+    Returns:
+        A replacement state with the top ticket transferred to the player.
+
+    Raises:
+        ValueError: If betting is unavailable, the player or camel is invalid,
+            or that camel's ticket stack is empty.
     """
     _validate_betting_transition(state, player_id)
-    ticket = available_leg_betting_ticket(state, camel)
-    if ticket is None:
-        raise ValueError("no leg betting ticket is available for that camel")
+    camel_index = _racing_camel_index(camel)
+    available_stacks = list(state.available_leg_betting_tickets)
+    ticket_stack = list(available_stacks[camel_index])
+    if not ticket_stack:
+        raise ValueError(f"no leg betting ticket is available for {camel.value}")
 
-    ticket_index = state.available_leg_betting_tickets.index(ticket)
-    available_tickets = (
-        state.available_leg_betting_tickets[:ticket_index]
-        + state.available_leg_betting_tickets[ticket_index + 1 :]
-    )
+    ticket = ticket_stack.pop()
+    available_stacks[camel_index] = tuple(ticket_stack)
     player = state.players[player_id]
     held_tickets = tuple(
         sorted(
@@ -63,7 +80,7 @@ def take_leg_betting_ticket(
     return replace(
         state,
         players=_replace_player(state.players, updated_player),
-        available_leg_betting_tickets=available_tickets,
+        available_leg_betting_tickets=tuple(available_stacks),
     )
 
 
@@ -77,15 +94,30 @@ def place_final_bet(
 
     Placing a final bet does not cost money. Settlement and turn legality are
     intentionally deferred to their focused rule layers.
+
+    Args:
+        state: Active game state before the bet.
+        player_id: Stable identity of the player placing the finish card.
+        camel: Racing camel predicted to finish first or last.
+        target: Ordered winner or loser record that receives the card.
+
+    Returns:
+        A replacement state with the card moved into the selected record.
+
+    Raises:
+        ValueError: If betting is unavailable, an argument is invalid, or the
+            player has already used that camel's finish card.
     """
     _validate_betting_transition(state, player_id)
-    _validate_racing_camel(camel)
+    _racing_camel_index(camel)
     if not isinstance(target, FinalBetTarget):
-        raise ValueError("target must be winner or loser")
+        raise ValueError(f"target must be winner or loser, got {target!r}")
 
     player = state.players[player_id]
     if camel not in player.available_finish_cards:
-        raise ValueError("that finish card is not available")
+        raise ValueError(
+            f"{camel.value} finish card is not available for player {player_id}"
+        )
 
     available_finish_cards = tuple(
         card for card in player.available_finish_cards if card is not camel
@@ -113,7 +145,7 @@ def place_final_bet(
 def _validate_betting_transition(state: GameState, player_id: int) -> None:
     """Reject states and player identities that cannot place a bet."""
     if not 0 <= player_id < len(state.players):
-        raise ValueError("player_id must identify a player in players")
+        raise ValueError(f"player_id {player_id} must identify a player in players")
     if not all(position.is_placed for position in state.board.camel_positions):
         raise ValueError("initial setup must be completed before betting")
     if state.terminal:
@@ -122,10 +154,11 @@ def _validate_betting_transition(state: GameState, player_id: int) -> None:
         raise ValueError("the leg is complete; settle it before betting")
 
 
-def _validate_racing_camel(camel: CamelId) -> None:
-    """Reject crazy camels, which are never valid betting subjects."""
-    if camel not in RACING_CAMEL_ORDER:
-        raise ValueError("bets must predict a racing camel")
+def _racing_camel_index(camel: CamelId) -> int:
+    """Return a racing camel's stable supply index."""
+    if not isinstance(camel, CamelId) or camel not in RACING_CAMEL_ORDER:
+        raise ValueError(f"bets must predict a racing camel, got {camel!r}")
+    return _CAMEL_INDEX[camel]
 
 
 def _replace_player(

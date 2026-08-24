@@ -84,10 +84,10 @@ the moved unit in the corresponding finish zone and returns a terminal state.
 Spectator-tile movement effects are deferred to a later engine milestone;
 `move_camel` currently rejects a move that would require one.
 
-## Deterministic Betting Transitions
+## Betting API
 
-Betting functions transfer tickets and finish cards without mutating the input
-state or applying payouts:
+Use the engine betting API to take the top ticket for a racing camel or place a
+finish card on the overall winner or loser record:
 
 ```python
 from camel_up.engine import (
@@ -106,10 +106,9 @@ state = place_final_bet(
 )
 ```
 
-Shared ticket supplies and ordered winner and loser records are authoritative
-parts of `GameState`. Player-held tickets and unused finish cards remain in
-`PlayerState`. Bet placement does not change money; focused scoring transitions
-will settle those assets in later engine pull requests.
+Both operations return a new state and leave their input unchanged. Placing a
+bet does not cost money. Betting settlement is not implemented yet, so these
+operations record player choices without applying payouts.
 
 ## Agent Compatibility
 
