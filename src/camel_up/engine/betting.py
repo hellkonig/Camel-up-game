@@ -62,17 +62,22 @@ def take_leg_betting_ticket(
     """
     _validate_betting_transition(state, player_id)
     camel_index = _racing_camel_index(camel)
-    available_stacks = list(state.available_leg_betting_tickets)
-    ticket_stack = list(available_stacks[camel_index])
-    if not ticket_stack:
+    ticket_stacks = state.available_leg_betting_tickets
+    selected_stack = ticket_stacks[camel_index]
+    if not selected_stack:
         raise ValueError(f"no leg betting ticket is available for {camel.value}")
 
-    ticket = ticket_stack.pop()
-    available_stacks[camel_index] = tuple(ticket_stack)
+    selected_ticket = selected_stack[-1]
+    remaining_stack = selected_stack[:-1]
+    updated_ticket_stacks = (
+        *ticket_stacks[:camel_index],
+        remaining_stack,
+        *ticket_stacks[camel_index + 1 :],
+    )
     player = state.players[player_id]
     held_tickets = tuple(
         sorted(
-            (*player.leg_betting_tickets, ticket),
+            (*player.leg_betting_tickets, selected_ticket),
             key=_leg_betting_ticket_sort_key,
         )
     )
@@ -80,7 +85,7 @@ def take_leg_betting_ticket(
     return replace(
         state,
         players=_replace_player(state.players, updated_player),
-        available_leg_betting_tickets=tuple(available_stacks),
+        available_leg_betting_tickets=updated_ticket_stacks,
     )
 
 
