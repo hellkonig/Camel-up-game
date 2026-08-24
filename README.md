@@ -84,6 +84,32 @@ the moved unit in the corresponding finish zone and returns a terminal state.
 Spectator-tile movement effects are deferred to a later engine milestone;
 `move_camel` currently rejects a move that would require one.
 
+## Betting API
+
+Use the engine betting API to take the top ticket for a racing camel or place a
+finish card on the overall winner or loser record:
+
+```python
+from camel_up.engine import (
+    CamelId,
+    FinalBetTarget,
+    place_final_bet,
+    take_leg_betting_ticket,
+)
+
+state = take_leg_betting_ticket(state, player_id=0, camel=CamelId.RED)
+state = place_final_bet(
+    state,
+    player_id=1,
+    camel=CamelId.GREEN,
+    target=FinalBetTarget.WINNER,
+)
+```
+
+Both operations return a new state and leave their input unchanged. Placing a
+bet does not cost money. Betting settlement is not implemented yet, so these
+operations record player choices without applying payouts.
+
 ## Agent Compatibility
 
 `GameState` is immutable, deterministic engine state shared by CLI, search, and

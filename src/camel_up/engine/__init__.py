@@ -1,5 +1,10 @@
 """Stable public types and queries for the Camel Up engine."""
 
+from camel_up.engine.betting import (
+    available_leg_betting_ticket,
+    place_final_bet,
+    take_leg_betting_ticket,
+)
 from camel_up.engine.dice import (
     DieRoll,
     SetupRoll,
@@ -11,6 +16,7 @@ from camel_up.engine.movement import move_camel
 from camel_up.engine.state import (
     CAMEL_ORDER,
     DIE_ORDER,
+    LEG_BETTING_TICKET_STACK_VALUES,
     MAX_PLAYERS,
     MIN_PLAYERS,
     RACING_CAMEL_ORDER,
@@ -18,6 +24,8 @@ from camel_up.engine.state import (
     CamelId,
     CamelPosition,
     DieId,
+    FinalBet,
+    FinalBetTarget,
     GameState,
     LegBettingTicket,
     PlayerState,
@@ -31,6 +39,7 @@ from camel_up.engine.state import (
 __all__ = [
     "CAMEL_ORDER",
     "DIE_ORDER",
+    "LEG_BETTING_TICKET_STACK_VALUES",
     "MAX_PLAYERS",
     "MIN_PLAYERS",
     "RACING_CAMEL_ORDER",
@@ -39,17 +48,22 @@ __all__ = [
     "CamelPosition",
     "DieId",
     "DieRoll",
+    "FinalBet",
+    "FinalBetTarget",
     "GameState",
     "LegBettingTicket",
     "PlayerState",
     "SpectatorTile",
     "SetupRoll",
+    "available_leg_betting_ticket",
     "carried_camels",
     "move_camel",
     "position_of",
+    "place_final_bet",
     "reset_leg_dice",
     "roll_die",
     "setup_game",
     "spectator_tile_for_player",
     "stack_at",
+    "take_leg_betting_ticket",
 ]

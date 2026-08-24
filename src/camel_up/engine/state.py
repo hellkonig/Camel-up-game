@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
@@ -31,6 +32,13 @@ class DieId(str, Enum):
     GREY = "grey"
 
 
+class FinalBetTarget(str, Enum):
+    """The final betting record that receives a finish card."""
+
+    WINNER = "winner"
+    LOSER = "loser"
+
+
 # Stable identity/serialization order; this is unrelated to current race ranking.
 RACING_CAMEL_ORDER: Final = (
     CamelId.RED,
@@ -43,6 +51,8 @@ CAMEL_ORDER: Final = (*RACING_CAMEL_ORDER, CamelId.WHITE, CamelId.BLACK)
 DIE_ORDER: Final = tuple(DieId)
 MIN_PLAYERS: Final = 3
 MAX_PLAYERS: Final = 8
+# Each stack is stored from bottom to top so its available ticket is last.
+LEG_BETTING_TICKET_STACK_VALUES: Final = (2, 2, 3, 5)
 _CAMEL_INDEX: Final = MappingProxyType(
     {camel: index for index, camel in enumerate(CAMEL_ORDER)}
 )
@@ -114,8 +124,35 @@ class LegBettingTicket:
         """Require a printed ticket from the racing-camel supply."""
         if self.camel not in RACING_CAMEL_ORDER:
             raise ValueError("leg betting tickets must show a racing camel")
-        if self.value not in (2, 3, 5):
+        if self.value not in LEG_BETTING_TICKET_STACK_VALUES:
             raise ValueError("leg betting ticket value must be 2, 3, or 5")
+
+
+@dataclass(frozen=True, slots=True)
+class FinalBet:
+    """One finish card placed into an ordered final betting record.
+
+    The containing winner or loser tuple determines what the card predicts, so
+    the target is not duplicated on each record.
+
+    The record can reject negative player IDs independently. The containing
+    :class:`GameState` validates the upper bound against its actual player
+    roster.
+
+    Attributes:
+        player_id: Stable identity of the player who placed the finish card.
+        camel: Racing camel predicted to finish first or last.
+    """
+
+    player_id: int
+    camel: CamelId
+
+    def __post_init__(self) -> None:
+        """Require a possible player identity and racing-camel prediction."""
+        if self.player_id < 0:
+            raise ValueError("player_id must be non-negative")
+        if self.camel not in RACING_CAMEL_ORDER:
+            raise ValueError("final bets must predict a racing camel")
 
 
 def _leg_betting_ticket_sort_key(
@@ -123,6 +160,31 @@ def _leg_betting_ticket_sort_key(
 ) -> tuple[int, int]:
     """Order by ``RACING_CAMEL_ORDER``, then by descending ticket value."""
     return _CAMEL_INDEX[ticket.camel], -ticket.value
+
+
+def canonical_leg_betting_tickets(
+    tickets: Iterable[LegBettingTicket],
+) -> tuple[LegBettingTicket, ...]:
+    """Return leg tickets in the canonical player-holdings order."""
+    return tuple(sorted(tickets, key=_leg_betting_ticket_sort_key))
+
+
+def _finish_card_sort_key(card: tuple[int, CamelId]) -> tuple[int, int]:
+    """Order a finish card by player identity, then racing camel identity."""
+    player_id, camel = card
+    return player_id, _CAMEL_INDEX[camel]
+
+
+INITIAL_LEG_BETTING_TICKET_STACKS: Final = tuple(
+    tuple(
+        LegBettingTicket(camel=camel, value=value)
+        for value in LEG_BETTING_TICKET_STACK_VALUES
+    )
+    for camel in RACING_CAMEL_ORDER
+)
+_ALL_LEG_BETTING_TICKETS: Final = canonical_leg_betting_tickets(
+    ticket for stack in INITIAL_LEG_BETTING_TICKET_STACKS for ticket in stack
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,12 +226,7 @@ class PlayerState:
         if self.pyramid_ticket_count < 0:
             raise ValueError("pyramid_ticket_count must be non-negative")
 
-        expected_tickets = tuple(
-            sorted(
-                self.leg_betting_tickets,
-                key=_leg_betting_ticket_sort_key,
-            )
-        )
+        expected_tickets = canonical_leg_betting_tickets(self.leg_betting_tickets)
         if self.leg_betting_tickets != expected_tickets:
             raise ValueError("leg_betting_tickets must use canonical order")
 
@@ -285,6 +342,11 @@ class GameState:
     It contains complete game truth; agents must consume a future
     player-relative observation rather than this state directly when the rules
     require hidden information.
+
+    Shared ticket supplies and ordered final betting records live here, while
+    held tickets and unused finish cards live on their owning
+    :class:`PlayerState`. Construction validates that those locations conserve
+    every betting asset.
     """
 
     board: BoardState
@@ -293,6 +355,11 @@ class GameState:
     current_player: int = 0
     leg_number: int = 1
     terminal: bool = False
+    available_leg_betting_tickets: tuple[tuple[LegBettingTicket, ...], ...] = (
+        INITIAL_LEG_BETTING_TICKET_STACKS
+    )
+    final_winner_bets: tuple[FinalBet, ...] = ()
+    final_loser_bets: tuple[FinalBet, ...] = ()
 
     @classmethod
     def pre_setup(
@@ -321,6 +388,8 @@ class GameState:
             tile.player_id >= len(self.players) for tile in self.board.spectator_tiles
         ):
             raise ValueError("spectator tiles must belong to a player in players")
+        self._validate_leg_betting_assets()
+        self._validate_finish_card_assets()
         if len(self.remaining_dice) != len(set(self.remaining_dice)):
             raise ValueError("remaining_dice cannot contain duplicates")
         expected_order = tuple(die for die in DIE_ORDER if die in self.remaining_dice)
@@ -333,6 +402,65 @@ class GameState:
             for position in self.board.camel_positions
         ):
             raise ValueError("a camel in a finish zone requires a terminal game")
+
+    def _validate_leg_betting_assets(self) -> None:
+        """Require canonical stacks and conserve every leg betting ticket."""
+        if len(self.available_leg_betting_tickets) != len(RACING_CAMEL_ORDER):
+            raise ValueError("available_leg_betting_tickets must use canonical order")
+
+        for available_stack, initial_stack in zip(
+            self.available_leg_betting_tickets,
+            INITIAL_LEG_BETTING_TICKET_STACKS,
+            strict=True,
+        ):
+            if available_stack != initial_stack[: len(available_stack)]:
+                raise ValueError(
+                    "available_leg_betting_tickets must use canonical stacks"
+                )
+
+        held_tickets = tuple(
+            ticket for player in self.players for ticket in player.leg_betting_tickets
+        )
+        available_tickets = tuple(
+            ticket for stack in self.available_leg_betting_tickets for ticket in stack
+        )
+        all_leg_tickets = canonical_leg_betting_tickets(
+            (*available_tickets, *held_tickets)
+        )
+        if all_leg_tickets != _ALL_LEG_BETTING_TICKETS:
+            raise ValueError(
+                "available and held leg betting tickets must conserve the "
+                "initial supply"
+            )
+
+    def _validate_finish_card_assets(self) -> None:
+        """Conserve finish cards across players and final betting records."""
+        all_finish_cards = [
+            (player.player_id, camel)
+            for player in self.players
+            for camel in player.available_finish_cards
+        ]
+        for bet in (*self.final_winner_bets, *self.final_loser_bets):
+            if bet.player_id >= len(self.players):
+                raise ValueError("final bets must belong to a player in players")
+            all_finish_cards.append((bet.player_id, bet.camel))
+
+        expected_finish_cards = tuple(
+            (player.player_id, camel)
+            for player in self.players
+            for camel in RACING_CAMEL_ORDER
+        )
+        ordered_finish_cards = tuple(
+            sorted(
+                all_finish_cards,
+                key=_finish_card_sort_key,
+            )
+        )
+        if ordered_finish_cards != expected_finish_cards:
+            raise ValueError(
+                "available finish cards and final bets must conserve one card "
+                "per player and racing camel"
+            )
 
 
 def position_of(board: BoardState, camel: CamelId) -> CamelPosition:
