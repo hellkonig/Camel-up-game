@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import replace
 
 from camel_up.engine.state import (
-    _CAMEL_INDEX,
     RACING_CAMEL_ORDER,
     CamelId,
     FinalBet,
@@ -13,7 +12,7 @@ from camel_up.engine.state import (
     GameState,
     LegBettingTicket,
     PlayerState,
-    _leg_betting_ticket_sort_key,
+    canonical_leg_betting_tickets,
 )
 
 
@@ -75,11 +74,8 @@ def take_leg_betting_ticket(
         *ticket_stacks[camel_index + 1 :],
     )
     player = state.players[player_id]
-    held_tickets = tuple(
-        sorted(
-            (*player.leg_betting_tickets, selected_ticket),
-            key=_leg_betting_ticket_sort_key,
-        )
+    held_tickets = canonical_leg_betting_tickets(
+        (*player.leg_betting_tickets, selected_ticket)
     )
     updated_player = replace(player, leg_betting_tickets=held_tickets)
     return replace(
@@ -114,7 +110,7 @@ def place_final_bet(
             player has already used that camel's finish card.
     """
     _validate_betting_transition(state, player_id)
-    _racing_camel_index(camel)
+    _validate_racing_camel(camel)
     if not isinstance(target, FinalBetTarget):
         raise ValueError(f"target must be winner or loser, got {target!r}")
 
@@ -161,9 +157,14 @@ def _validate_betting_transition(state: GameState, player_id: int) -> None:
 
 def _racing_camel_index(camel: CamelId) -> int:
     """Return a racing camel's stable supply index."""
+    _validate_racing_camel(camel)
+    return RACING_CAMEL_ORDER.index(camel)
+
+
+def _validate_racing_camel(camel: CamelId) -> None:
+    """Reject camel identities that cannot receive bets."""
     if not isinstance(camel, CamelId) or camel not in RACING_CAMEL_ORDER:
         raise ValueError(f"bets must predict a racing camel, got {camel!r}")
-    return _CAMEL_INDEX[camel]
 
 
 def _replace_player(

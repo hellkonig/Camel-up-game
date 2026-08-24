@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
@@ -161,6 +162,19 @@ def _leg_betting_ticket_sort_key(
     return _CAMEL_INDEX[ticket.camel], -ticket.value
 
 
+def canonical_leg_betting_tickets(
+    tickets: Iterable[LegBettingTicket],
+) -> tuple[LegBettingTicket, ...]:
+    """Return leg tickets in the canonical player-holdings order."""
+    return tuple(sorted(tickets, key=_leg_betting_ticket_sort_key))
+
+
+def _finish_card_sort_key(card: tuple[int, CamelId]) -> tuple[int, int]:
+    """Order a finish card by player identity, then racing camel identity."""
+    player_id, camel = card
+    return player_id, _CAMEL_INDEX[camel]
+
+
 INITIAL_LEG_BETTING_TICKET_STACKS: Final = tuple(
     tuple(
         LegBettingTicket(camel=camel, value=value)
@@ -168,11 +182,8 @@ INITIAL_LEG_BETTING_TICKET_STACKS: Final = tuple(
     )
     for camel in RACING_CAMEL_ORDER
 )
-_ALL_LEG_BETTING_TICKETS: Final = tuple(
-    sorted(
-        (ticket for stack in INITIAL_LEG_BETTING_TICKET_STACKS for ticket in stack),
-        key=_leg_betting_ticket_sort_key,
-    )
+_ALL_LEG_BETTING_TICKETS: Final = canonical_leg_betting_tickets(
+    ticket for stack in INITIAL_LEG_BETTING_TICKET_STACKS for ticket in stack
 )
 
 
@@ -215,12 +226,7 @@ class PlayerState:
         if self.pyramid_ticket_count < 0:
             raise ValueError("pyramid_ticket_count must be non-negative")
 
-        expected_tickets = tuple(
-            sorted(
-                self.leg_betting_tickets,
-                key=_leg_betting_ticket_sort_key,
-            )
-        )
+        expected_tickets = canonical_leg_betting_tickets(self.leg_betting_tickets)
         if self.leg_betting_tickets != expected_tickets:
             raise ValueError("leg_betting_tickets must use canonical order")
 
@@ -418,11 +424,8 @@ class GameState:
         available_tickets = tuple(
             ticket for stack in self.available_leg_betting_tickets for ticket in stack
         )
-        all_leg_tickets = tuple(
-            sorted(
-                (*available_tickets, *held_tickets),
-                key=_leg_betting_ticket_sort_key,
-            )
+        all_leg_tickets = canonical_leg_betting_tickets(
+            (*available_tickets, *held_tickets)
         )
         if all_leg_tickets != _ALL_LEG_BETTING_TICKETS:
             raise ValueError(
@@ -450,7 +453,7 @@ class GameState:
         ordered_finish_cards = tuple(
             sorted(
                 all_finish_cards,
-                key=lambda card: (card[0], _CAMEL_INDEX[card[1]]),
+                key=_finish_card_sort_key,
             )
         )
         if ordered_finish_cards != expected_finish_cards:
