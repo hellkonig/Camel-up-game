@@ -107,8 +107,20 @@ state = place_final_bet(
 ```
 
 Both operations return a new state and leave their input unchanged. Placing a
-bet does not cost money. Betting settlement is not implemented yet, so these
-operations record player choices without applying payouts.
+bet does not cost money. Once a leg reaches its scoring boundary, use the
+scoring API to inspect the racing order and settle its betting assets:
+
+```python
+from camel_up.engine import rank_racing_camels, settle_leg
+
+ranking = rank_racing_camels(state.board)
+state = settle_leg(state)
+```
+
+`ranking` lists only racing camels from first to last; crazy camels are ignored.
+`settle_leg` applies leg-ticket and pyramid-ticket payouts, floors balances at
+zero, and resets only the consumed leg betting assets. Dice, spectator tiles,
+turn progression, and final-race settlement remain separate rule transitions.
 
 ## Agent Compatibility
 

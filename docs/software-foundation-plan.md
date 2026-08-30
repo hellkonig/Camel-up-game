@@ -424,6 +424,8 @@ Non-goals:
 
 #### PR 5b: `feat: add leg ranking and settlement`
 
+Status: `Done`
+
 Suggested branch: `feat/leg-scoring`
 
 Goal: Score one leg deterministically using the stable board, player, and
@@ -431,17 +433,17 @@ betting state from PR 5a.
 
 Tasks:
 
-- [ ] Add `engine.scoring` racing-camel ordering that excludes crazy camels and
+- [x] Add `engine.scoring` racing-camel ordering that excludes crazy camels and
       handles shared stacks and both finish zones.
-- [ ] Add immutable leg settlement for printed leg-ticket payouts, second-place
+- [x] Add immutable leg settlement for printed leg-ticket payouts, second-place
       payouts, losing-ticket penalties, and pyramid-ticket income.
-- [ ] Clear held leg tickets and pyramid-ticket counts and restore the canonical
+- [x] Clear held leg tickets and pyramid-ticket counts and restore the canonical
       shared leg-ticket supplies after settlement.
-- [ ] Preserve race-long state, including money after settlement, final-bet
+- [x] Preserve race-long state, including money after settlement, final-bet
       records, unused finish cards, camel positions, and terminal status.
-- [ ] Leave dice reset, spectator-tile return, leg-number advancement, and
+- [x] Leave dice reset, spectator-tile return, leg-number advancement, and
       current-player advancement to turn orchestration.
-- [ ] Add focused tests for stack-based first and second place, crazy-camel
+- [x] Add focused tests for stack-based first and second place, crazy-camel
       interactions, every payout category, zero-balance flooring, and betting
       asset reset boundaries.
 

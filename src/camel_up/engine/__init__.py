@@ -13,6 +13,7 @@ from camel_up.engine.dice import (
     setup_game,
 )
 from camel_up.engine.movement import move_camel
+from camel_up.engine.scoring import rank_racing_camels, settle_leg
 from camel_up.engine.state import (
     CAMEL_ORDER,
     DIE_ORDER,
@@ -60,9 +61,11 @@ __all__ = [
     "move_camel",
     "position_of",
     "place_final_bet",
+    "rank_racing_camels",
     "reset_leg_dice",
     "roll_die",
     "setup_game",
+    "settle_leg",
     "spectator_tile_for_player",
     "stack_at",
     "take_leg_betting_ticket",
