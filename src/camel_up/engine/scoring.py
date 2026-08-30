@@ -83,7 +83,7 @@ def _race_progress(board: BoardState, camel: CamelId) -> tuple[int, int]:
     """Return a sortable racing progress coordinate for one placed camel."""
     position = position_of(board, camel)
     if position.space is None or position.level is None:
-        raise ValueError("initial setup must be completed before ranking camels")
+        raise ValueError(f"{camel.value} camel must be placed before ranking camels")
     return position.space, position.level
 
 
@@ -116,4 +116,8 @@ def _validate_leg_settlement(state: GameState) -> None:
     if not all(position.is_placed for position in state.board.camel_positions):
         raise ValueError("initial setup must be completed before settling a leg")
     if not state.terminal and len(state.remaining_dice) != 1:
-        raise ValueError("a leg can only be settled after five dice have been used")
+        raise ValueError(
+            "cannot settle an unfinished leg: state is non-terminal with "
+            f"{len(state.remaining_dice)} dice remaining; expected one remaining "
+            "die or a terminal game"
+        )

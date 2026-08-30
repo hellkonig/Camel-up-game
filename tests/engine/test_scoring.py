@@ -93,7 +93,11 @@ def test_ranking_excludes_crazy_camels_and_uses_physical_stack_level() -> None:
 def test_ranking_handles_forward_and_backward_finish_zone_stacks() -> None:
     board = _board_with_stacks(
         {
-            -1: (CamelId.BLACK, CamelId.PURPLE, CamelId.GREEN),
+            -1: (  # Backward finish zone.
+                CamelId.BLACK,
+                CamelId.PURPLE,
+                CamelId.GREEN,
+            ),
             15: (CamelId.YELLOW,),
             16: (CamelId.WHITE, CamelId.RED, CamelId.BLUE),
         }
@@ -139,7 +143,6 @@ def test_leg_settlement_applies_every_payout_and_resets_betting_assets() -> None
     )
     assert state.players[0].money == 3
     assert len(state.players[0].leg_betting_tickets) == 6
-    assert settle_leg(settled) == settled
 
 
 def test_leg_result_is_combined_before_money_is_floored_at_zero() -> None:
@@ -156,6 +159,35 @@ def test_leg_result_is_combined_before_money_is_floored_at_zero() -> None:
     # The losing ticket and pyramid ticket net to zero. Flooring the loss
     # before adding the income would incorrectly leave the player with 1 EP.
     assert settled.players[0].money == 0
+
+
+def test_leg_settlement_floors_a_negative_balance_at_zero() -> None:
+    state = take_leg_betting_ticket(_active_state(), 0, CamelId.GREEN)
+    player = replace(state.players[0], money=0)
+    state = replace(
+        state,
+        players=(player, *state.players[1:]),
+        remaining_dice=(DieId.YELLOW,),
+    )
+
+    settled = settle_leg(state)
+
+    assert settled.players[0].money == 0
+
+
+def test_repeated_leg_settlement_does_not_credit_players_again() -> None:
+    state = take_leg_betting_ticket(_active_state(), 0, CamelId.RED)
+    player = replace(state.players[0], pyramid_ticket_count=2)
+    state = replace(
+        state,
+        players=(player, *state.players[1:]),
+        remaining_dice=(DieId.YELLOW,),
+    )
+
+    settled = settle_leg(state)
+
+    assert settled.players[0].money == 10
+    assert settle_leg(settled) == settled
 
 
 def test_leg_settlement_preserves_race_long_and_orchestration_state() -> None:
@@ -217,5 +249,8 @@ def test_leg_settlement_rejects_pre_setup_and_unfinished_leg() -> None:
     with pytest.raises(ValueError, match="setup must be completed"):
         settle_leg(GameState.pre_setup())
 
-    with pytest.raises(ValueError, match="after five dice"):
+    with pytest.raises(
+        ValueError,
+        match="non-terminal with 6 dice remaining",
+    ):
         settle_leg(_active_state())
