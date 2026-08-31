@@ -107,8 +107,9 @@ state = place_final_bet(
 ```
 
 Both operations return a new state and leave their input unchanged. Placing a
-bet does not cost money. Betting settlement is not implemented yet, so these
-operations record player choices without applying payouts.
+bet does not cost money. `settle_leg` applies leg-ticket and pyramid-ticket
+payouts at a scoring boundary and resets the consumed leg betting assets.
+Turn orchestration and final-race settlement remain later engine milestones.
 
 ## Agent Compatibility
 
