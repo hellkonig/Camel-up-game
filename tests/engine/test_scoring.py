@@ -212,6 +212,12 @@ def test_leg_settlement_preserves_race_long_and_orchestration_state() -> None:
 
     settled = settle_leg(state)
 
+    # Settlement changes balances and consumes leg-scoped betting assets.
+    assert settled != state
+    assert settled.players[1] != state.players[1]
+    assert settled.available_leg_betting_tickets != state.available_leg_betting_tickets
+
+    # It does not perform the wider leg or turn transition.
     assert settled.board == state.board
     assert settled.remaining_dice == state.remaining_dice
     assert settled.current_player == state.current_player
