@@ -47,6 +47,9 @@ def rank_racing_camels(board: BoardState) -> tuple[CamelId, ...]:
 def settle_leg(state: GameState) -> GameState:
     """Apply leg payouts and reset only the consumed leg betting assets.
 
+    This is a scoring-only transition. It leaves the board and remaining dice
+    unchanged and does not start the next leg.
+
     A regular leg can be settled after five dice have been used. A terminal
     game can be settled immediately because crossing either finish line ends
     the current leg regardless of how many dice remain.
