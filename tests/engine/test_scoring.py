@@ -16,6 +16,7 @@ from camel_up.engine import (
     SpectatorTile,
     place_final_bet,
     rank_racing_camels,
+    settle_final_bets,
     settle_leg,
     take_leg_betting_ticket,
 )
@@ -43,11 +44,15 @@ def _board_with_stacks(
     )
 
 
-def _players() -> tuple[PlayerState, ...]:
-    return tuple(PlayerState(player_id=index) for index in range(MIN_PLAYERS))
+def _players(player_count: int = MIN_PLAYERS) -> tuple[PlayerState, ...]:
+    return tuple(PlayerState(player_id=index) for index in range(player_count))
 
 
-def _active_state(*, spectator_tile: bool = False) -> GameState:
+def _active_state(
+    *,
+    spectator_tile: bool = False,
+    player_count: int = MIN_PLAYERS,
+) -> GameState:
     tiles = (SpectatorTile(player_id=2, space=3, effect=-1),) if spectator_tile else ()
     board = _board_with_stacks(
         {
@@ -63,7 +68,20 @@ def _active_state(*, spectator_tile: bool = False) -> GameState:
         },
         spectator_tiles=tiles,
     )
-    return GameState(board=board, players=_players())
+    return GameState(board=board, players=_players(player_count))
+
+
+def _terminal_board() -> BoardState:
+    """Return a board where red won and purple lost across finish zones."""
+    return _board_with_stacks(
+        {
+            -1: (CamelId.BLACK, CamelId.PURPLE),
+            5: (CamelId.GREEN,),
+            6: (CamelId.YELLOW,),
+            7: (CamelId.BLUE,),
+            16: (CamelId.WHITE, CamelId.RED),
+        }
+    )
 
 
 def test_ranking_excludes_crazy_camels_and_uses_physical_stack_level() -> None:
@@ -260,3 +278,127 @@ def test_leg_settlement_rejects_pre_setup_and_unfinished_leg() -> None:
         match="non-terminal with 6 dice remaining",
     ):
         settle_leg(_active_state())
+
+
+def test_final_settlement_scores_ordered_records_independently() -> None:
+    state = _active_state(player_count=8)
+    winner_bets = (
+        (0, CamelId.BLUE),  # Incorrect bets do not consume payout positions.
+        (1, CamelId.RED),
+        (2, CamelId.RED),
+        (3, CamelId.GREEN),
+        (4, CamelId.RED),
+        (5, CamelId.RED),
+        (6, CamelId.RED),  # Fifth correct bet pays 1 EP.
+    )
+    loser_bets = (
+        (0, CamelId.YELLOW),
+        (2, CamelId.PURPLE),
+        (1, CamelId.BLUE),
+        (3, CamelId.PURPLE),
+    )
+    for player_id, camel in winner_bets:
+        state = place_final_bet(
+            state,
+            player_id,
+            camel,
+            FinalBetTarget.WINNER,
+        )
+    for player_id, camel in loser_bets:
+        state = place_final_bet(
+            state,
+            player_id,
+            camel,
+            FinalBetTarget.LOSER,
+        )
+    terminal = replace(state, board=_terminal_board(), terminal=True)
+
+    settled = settle_final_bets(terminal)
+
+    assert tuple(player.money for player in settled.players) == (
+        1,  # Two incorrect bets: 3 - 1 - 1.
+        10,  # First correct winner bet and one incorrect loser bet: 3 + 8 - 1.
+        16,  # Second correct winner and first correct loser: 3 + 5 + 8.
+        7,  # One incorrect winner and second correct loser: 3 - 1 + 5.
+        6,
+        5,
+        4,
+        3,
+    )
+    assert settled.final_bets_settled
+    assert settled.final_winner_bets == terminal.final_winner_bets
+    assert settled.final_loser_bets == terminal.final_loser_bets
+    assert not terminal.final_bets_settled
+    assert all(player.money == 3 for player in terminal.players)
+
+
+def test_final_settlement_uses_stack_order_at_both_finish_zones() -> None:
+    state = place_final_bet(
+        _active_state(),
+        player_id=0,
+        camel=CamelId.BLUE,
+        target=FinalBetTarget.WINNER,
+    )
+    state = place_final_bet(
+        state,
+        player_id=1,
+        camel=CamelId.PURPLE,
+        target=FinalBetTarget.LOSER,
+    )
+    terminal_board = _board_with_stacks(
+        {
+            -1: (CamelId.BLACK, CamelId.PURPLE, CamelId.GREEN),
+            15: (CamelId.YELLOW,),
+            16: (CamelId.WHITE, CamelId.RED, CamelId.BLUE),
+        }
+    )
+
+    settled = settle_final_bets(replace(state, board=terminal_board, terminal=True))
+
+    assert tuple(player.money for player in settled.players) == (11, 11, 3)
+
+
+def test_final_settlement_combines_results_before_flooring_money() -> None:
+    state = place_final_bet(
+        _active_state(),
+        player_id=0,
+        camel=CamelId.BLUE,
+        target=FinalBetTarget.WINNER,
+    )
+    state = place_final_bet(
+        state,
+        player_id=0,
+        camel=CamelId.YELLOW,
+        target=FinalBetTarget.LOSER,
+    )
+    players = (replace(state.players[0], money=0), *state.players[1:])
+
+    settled = settle_final_bets(
+        replace(state, board=_terminal_board(), players=players, terminal=True)
+    )
+
+    assert settled.players[0].money == 0
+
+
+def test_final_settlement_rejects_invalid_or_repeated_boundaries() -> None:
+    with pytest.raises(ValueError, match="before the game has ended"):
+        settle_final_bets(_active_state())
+
+    with pytest.raises(ValueError, match="setup must be completed"):
+        settle_final_bets(replace(GameState.pre_setup(), terminal=True))
+
+    settled = settle_final_bets(
+        replace(_active_state(), board=_terminal_board(), terminal=True)
+    )
+    with pytest.raises(ValueError, match="already been settled"):
+        settle_final_bets(settled)
+
+
+def test_equivalent_final_settlements_are_deterministic_and_hashable() -> None:
+    terminal = replace(_active_state(), board=_terminal_board(), terminal=True)
+
+    first = settle_final_bets(terminal)
+    second = settle_final_bets(terminal)
+
+    assert first == second
+    assert hash(first) == hash(second)

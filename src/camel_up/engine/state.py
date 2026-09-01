@@ -360,6 +360,7 @@ class GameState:
     )
     final_winner_bets: tuple[FinalBet, ...] = ()
     final_loser_bets: tuple[FinalBet, ...] = ()
+    final_bets_settled: bool = False
 
     @classmethod
     def pre_setup(
@@ -397,6 +398,8 @@ class GameState:
             raise ValueError("remaining_dice must be valid and use canonical order")
         if self.leg_number < 1:
             raise ValueError("leg_number must be positive")
+        if self.final_bets_settled and not self.terminal:
+            raise ValueError("final bets can only be settled for a terminal game")
         if not self.terminal and any(
             position.space in (-1, self.board.track_length)
             for position in self.board.camel_positions

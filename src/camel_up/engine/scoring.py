@@ -1,4 +1,4 @@
-"""Deterministic racing-camel ranking and leg settlement rules."""
+"""Deterministic racing-camel ranking and settlement rules."""
 
 from __future__ import annotations
 
@@ -9,10 +9,13 @@ from camel_up.engine.state import (
     RACING_CAMEL_ORDER,
     BoardState,
     CamelId,
+    FinalBet,
     GameState,
     PlayerState,
     position_of,
 )
+
+_FINAL_BET_PAYOUTS = (8, 5, 3, 2)
 
 
 def rank_racing_camels(board: BoardState) -> tuple[CamelId, ...]:
@@ -82,6 +85,42 @@ def settle_leg(state: GameState) -> GameState:
     )
 
 
+def settle_final_bets(state: GameState) -> GameState:
+    """Apply final winner and loser bet payouts to a terminal game.
+
+    Winner and loser records are scored independently in placement order.
+    Correct bets receive 8, 5, 3, and 2 Egyptian Pounds, followed by 1 for
+    every later correct bet. Incorrect bets do not consume a payout position
+    and lose 1 Egyptian Pound. All of a player's final-bet results are combined
+    before their balance is floored at zero.
+
+    This scoring-only transition preserves both ordered bet records for replay
+    and audit. It marks them as settled so the same terminal state cannot be
+    credited twice.
+
+    Args:
+        state: Terminal game whose final betting records should be settled.
+
+    Returns:
+        A replacement state with updated balances and completed settlement.
+
+    Raises:
+        ValueError: If the game is non-terminal, setup is incomplete, or final
+            bets have already been settled.
+    """
+    _validate_final_settlement(state)
+    ranking = rank_racing_camels(state.board)
+    payouts = [0] * len(state.players)
+    _score_final_bet_record(state.final_winner_bets, ranking[0], payouts)
+    _score_final_bet_record(state.final_loser_bets, ranking[-1], payouts)
+
+    players = tuple(
+        replace(player, money=max(0, player.money + payouts[player.player_id]))
+        for player in state.players
+    )
+    return replace(state, players=players, final_bets_settled=True)
+
+
 def _race_progress(board: BoardState, camel: CamelId) -> tuple[int, int]:
     """Return a sortable racing progress coordinate for one placed camel."""
     position = position_of(board, camel)
@@ -114,6 +153,26 @@ def _settle_player(
     )
 
 
+def _score_final_bet_record(
+    bets: tuple[FinalBet, ...],
+    result: CamelId,
+    payouts: list[int],
+) -> None:
+    """Accumulate one ordered winner or loser record into player payouts."""
+    correct_bet_count = 0
+    for bet in bets:
+        if bet.camel is result:
+            payout = (
+                _FINAL_BET_PAYOUTS[correct_bet_count]
+                if correct_bet_count < len(_FINAL_BET_PAYOUTS)
+                else 1
+            )
+            payouts[bet.player_id] += payout
+            correct_bet_count += 1
+        else:
+            payouts[bet.player_id] -= 1
+
+
 def _validate_leg_settlement(state: GameState) -> None:
     """Reject states that have not reached a scoring boundary."""
     if not all(position.is_placed for position in state.board.camel_positions):
@@ -124,3 +183,13 @@ def _validate_leg_settlement(state: GameState) -> None:
             f"{len(state.remaining_dice)} dice remaining; expected one remaining "
             "die or a terminal game"
         )
+
+
+def _validate_final_settlement(state: GameState) -> None:
+    """Reject states outside the one valid final-settlement boundary."""
+    if not state.terminal:
+        raise ValueError("cannot settle final bets before the game has ended")
+    if state.final_bets_settled:
+        raise ValueError("final bets have already been settled")
+    if not all(position.is_placed for position in state.board.camel_positions):
+        raise ValueError("initial setup must be completed before settling final bets")

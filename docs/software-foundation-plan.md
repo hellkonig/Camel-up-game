@@ -467,6 +467,8 @@ Non-goals:
 
 #### PR 5c: `feat: add final race settlement`
 
+Status: `Done`
+
 Suggested branch: `feat/final-race-scoring`
 
 Goal: Settle ordered final winner and loser bets for a terminal race using the
@@ -474,15 +476,15 @@ ranking and betting contracts established by PRs 5a and 5b.
 
 Tasks:
 
-- [ ] Determine the winning and losing racing camels from the canonical race
+- [x] Determine the winning and losing racing camels from the canonical race
       order, including same-stack and backward-finish cases.
-- [ ] Score final winner and loser records independently in placement order
+- [x] Score final winner and loser records independently in placement order
       using the canonical 8, 5, 3, 2, then 1 payout sequence.
-- [ ] Apply incorrect-bet penalties without allowing negative balances.
-- [ ] Record final-settlement completion in `GameState`, reject non-terminal or
+- [x] Apply incorrect-bet penalties without allowing negative balances.
+- [x] Record final-settlement completion in `GameState`, reject non-terminal or
       already-settled input, and preserve immutable bet history for replay and
       audit.
-- [ ] Add focused tests for ordered correct payouts, incorrect bets, more than
+- [x] Add focused tests for ordered correct payouts, incorrect bets, more than
       four correct bets, same-stack winner and loser selection, backward finish,
       and deterministic balance updates.
 
@@ -648,7 +650,7 @@ High-priority areas:
 - [ ] Spectator tile movement effects.
 - [ ] Leg reset behavior.
 - [x] End-of-game detection.
-- [ ] Winner and runner-up ordering.
+- [x] Winner and runner-up ordering.
 - [ ] Legal actions and legal action masks.
 - [x] Determinism with fixed seeds.
 
