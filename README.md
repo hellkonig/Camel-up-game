@@ -106,16 +106,15 @@ state = place_final_bet(
     target=FinalBetTarget.WINNER,
 )
 
-# Once camel movement has made the game terminal:
+# Settle the final records after camel movement ends the game.
 state = settle_final_bets(state)
 ```
 
 Both operations return a new state and leave their input unchanged. Placing a
 bet does not cost money. `settle_leg` applies leg-ticket and pyramid-ticket
 payouts at a scoring boundary and resets the consumed leg betting assets.
-`settle_final_bets` scores the terminal winner and loser records in placement
-order, preserves their history, and prevents duplicate settlement. Turn
-orchestration remains a later engine milestone.
+Call `settle_final_bets` on a terminal state to score the final winner and loser
+records.
 
 ## Agent Compatibility
 

@@ -346,7 +346,9 @@ class GameState:
     Shared ticket supplies and ordered final betting records live here, while
     held tickets and unused finish cards live on their owning
     :class:`PlayerState`. Construction validates that those locations conserve
-    every betting asset.
+    every betting asset. Final bet records remain intact after scoring for
+    replay and audit, so ``final_bets_settled`` separately records completion
+    and prevents the same terminal state from paying them twice.
     """
 
     board: BoardState
