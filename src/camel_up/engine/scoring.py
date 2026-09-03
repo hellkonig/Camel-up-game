@@ -110,16 +110,23 @@ def settle_final_bets(state: GameState) -> GameState:
     """
     _validate_final_settlement(state)
     ranking = rank_racing_camels(state.board)
-    payouts = (0,) * len(state.players)
-    payouts = _score_final_bet_record(
+    winner_payouts = _score_final_bet_record(
         state.final_winner_bets,
         ranking[0],
-        payouts,
+        player_count=len(state.players),
     )
-    payouts = _score_final_bet_record(
+    loser_payouts = _score_final_bet_record(
         state.final_loser_bets,
         ranking[-1],
-        payouts,
+        player_count=len(state.players),
+    )
+    payouts = tuple(
+        winner_payout + loser_payout
+        for winner_payout, loser_payout in zip(
+            winner_payouts,
+            loser_payouts,
+            strict=True,
+        )
     )
 
     players = tuple(
@@ -164,10 +171,11 @@ def _settle_player(
 def _score_final_bet_record(
     bets: tuple[FinalBet, ...],
     result: CamelId,
-    payouts: tuple[int, ...],
+    *,
+    player_count: int,
 ) -> tuple[int, ...]:
-    """Return payouts updated from one ordered winner or loser record."""
-    updated_payouts = list(payouts)
+    """Return player payout deltas for one winner or loser record."""
+    payouts = [0] * player_count
     correct_bet_count = 0
     for bet in bets:
         if bet.camel is result:
@@ -176,11 +184,11 @@ def _score_final_bet_record(
                 if correct_bet_count < len(_FINAL_BET_PAYOUTS)
                 else 1
             )
-            updated_payouts[bet.player_id] += payout
+            payouts[bet.player_id] += payout
             correct_bet_count += 1
         else:
-            updated_payouts[bet.player_id] -= 1
-    return tuple(updated_payouts)
+            payouts[bet.player_id] -= 1
+    return tuple(payouts)
 
 
 def _validate_leg_settlement(state: GameState) -> None:
