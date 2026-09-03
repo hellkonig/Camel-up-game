@@ -253,6 +253,11 @@ def test_finish_zone_requires_terminal_game_state() -> None:
     assert GameState(board=board, players=_players(), terminal=True).terminal
 
 
+def test_final_bet_settlement_marker_requires_terminal_game() -> None:
+    with pytest.raises(ValueError, match="terminal game"):
+        replace(GameState.pre_setup(), final_bets_settled=True)
+
+
 def test_legacy_components_preserve_prototype_stack_behavior() -> None:
     from components import Board, Camel
 

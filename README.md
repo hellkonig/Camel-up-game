@@ -94,6 +94,7 @@ from camel_up.engine import (
     CamelId,
     FinalBetTarget,
     place_final_bet,
+    settle_final_bets,
     take_leg_betting_ticket,
 )
 
@@ -104,12 +105,16 @@ state = place_final_bet(
     camel=CamelId.GREEN,
     target=FinalBetTarget.WINNER,
 )
+
+if state.terminal:
+    state = settle_final_bets(state)
 ```
 
-Both operations return a new state and leave their input unchanged. Placing a
-bet does not cost money. `settle_leg` applies leg-ticket and pyramid-ticket
-payouts at a scoring boundary and resets the consumed leg betting assets.
-Turn orchestration and final-race settlement remain later engine milestones.
+Betting transitions return a new state and leave their input unchanged. Placing
+a bet does not cost money. `settle_leg` applies leg-ticket and pyramid-ticket
+payouts at a scoring boundary and resets the consumed leg betting assets. Call
+`settle_final_bets` on a terminal state to score the final winner and loser
+records.
 
 ## Agent Compatibility
 
