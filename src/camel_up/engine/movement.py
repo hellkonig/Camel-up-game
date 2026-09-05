@@ -17,6 +17,7 @@ from camel_up.engine.state import (
     position_of,
     stack_at,
 )
+from camel_up.engine.tiles import apply_spectator_tile_effect
 
 _CRAZY_CAMELS: Final = (CamelId.WHITE, CamelId.BLACK)
 
@@ -24,9 +25,11 @@ _CRAZY_CAMELS: Final = (CamelId.WHITE, CamelId.BLACK)
 def move_camel(state: GameState, roll: DieRoll) -> GameState:
     """Apply one physical die result to a fully set up game state.
 
-    The selected camel carries every camel above it and the complete unit lands
-    on top of any destination stack. Racing camels move forward; crazy camels
-    move backward. Crossing either finish boundary clamps the unit into that
+    The selected camel carries every camel above it. Racing camels move forward;
+    crazy camels move backward. A cheering spectator tile moves the unit one
+    additional space in its travel direction and places it on top of a stack;
+    a booing tile moves it one space against that direction and places it under
+    a stack. Crossing either finish boundary clamps the unit into that
     boundary's finish zone and makes the game terminal.
 
     Dice selection and removal are handled by :func:`roll_die`; this function
@@ -40,8 +43,7 @@ def move_camel(state: GameState, roll: DieRoll) -> GameState:
         A replacement state containing the moved camel unit.
 
     Raises:
-        ValueError: If setup is incomplete, the game is terminal, or the move
-            requires a spectator-tile effect that is not implemented yet.
+        ValueError: If setup is incomplete or the game is terminal.
     """
     _validate_movement_state(state)
     moving_camel = _resolve_moving_camel(state.board, roll)
@@ -53,23 +55,41 @@ def move_camel(state: GameState, roll: DieRoll) -> GameState:
         raw_destination = source.space - roll.distance
     else:
         raw_destination = source.space + roll.distance
-    destination, crossed_finish = _resolve_finish_zone(
+    landing_space, crossed_finish = _resolve_finish_zone(
         raw_destination,
         state.board.track_length,
     )
-    if not crossed_finish and any(
-        tile.space == destination for tile in state.board.spectator_tiles
-    ):
-        raise ValueError("spectator tile movement effects are not implemented")
-
     moving_unit = carried_camels(state.board, moving_camel)
-    destination_level = len(stack_at(state.board, destination))
+    place_under = False
+    if not crossed_finish:
+        state, tile_destination, place_under = apply_spectator_tile_effect(
+            state,
+            moving_camel,
+            landing_space,
+        )
+        destination, crossed_finish = _resolve_finish_zone(
+            tile_destination,
+            state.board.track_length,
+        )
+    else:
+        destination = landing_space
+
+    destination_stack = tuple(
+        camel
+        for camel in stack_at(state.board, destination)
+        if camel not in moving_unit
+    )
+    final_stack = (
+        (*moving_unit, *destination_stack)
+        if place_under
+        else (*destination_stack, *moving_unit)
+    )
     positions = list(state.board.camel_positions)
-    for level_offset, camel in enumerate(moving_unit):
+    for level, camel in enumerate(final_stack):
         camel_index = CAMEL_ORDER.index(camel)
         positions[camel_index] = CamelPosition(
             space=destination,
-            level=destination_level + level_offset,
+            level=level,
         )
 
     board = replace(state.board, camel_positions=tuple(positions))

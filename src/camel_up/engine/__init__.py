@@ -36,6 +36,7 @@ from camel_up.engine.state import (
     spectator_tile_for_player,
     stack_at,
 )
+from camel_up.engine.tiles import place_spectator_tile, return_spectator_tiles
 
 __all__ = [
     "CAMEL_ORDER",
@@ -61,8 +62,10 @@ __all__ = [
     "move_camel",
     "position_of",
     "place_final_bet",
+    "place_spectator_tile",
     "rank_racing_camels",
     "reset_leg_dice",
+    "return_spectator_tiles",
     "roll_die",
     "setup_game",
     "settle_final_bets",
