@@ -143,7 +143,7 @@ Tasks:
 - [x] Replace the mutable `Camel` and `Board` state model with canonical engine
       coordinates, retaining prototype adapters only while the CLI needs them.
 - [x] Introduce `GameState` before adding more rule behavior.
-- [ ] Put movement rules in `engine.movement`, dice rules in `engine.dice`,
+- [x] Put movement rules in `engine.movement`, dice rules in `engine.dice`,
       tile rules in `engine.tiles`, betting rules in `engine.betting`, and
       scoring rules in `engine.scoring`.
 - [x] Re-export only stable public functions and dataclasses from
@@ -508,28 +508,82 @@ Non-goals:
 - Action generation, turn orchestration, CLI migration, agents, and RL
   environments.
 
-#### PR 6: `feat: add legal actions and turn progression`
+The original legal-actions-and-turn-progression pull request crosses three
+stable rule boundaries. Implement it as PRs 6a through 6c so spectator-tile
+semantics stabilize before action indexing, and action indexing stabilizes
+before turn orchestration consumes it.
 
-Suggested branch: `feat/legal-actions-turns`
+#### PR 6a: `feat: add spectator tile rules`
+
+Status: `Done`
+
+Suggested branch: `feat/spectator-tile-rules`
+
+Goal: Complete deterministic spectator-tile placement, rewards, movement
+effects, and leg-boundary return transitions.
+
+Tasks:
+
+- [x] Add `engine.tiles` for immutable tile placement and replacement.
+- [x] Apply cheering and booing movement effects while preserving carried-stack
+      order and the booing tile's under-stack rule.
+- [x] Reverse tile displacement for crazy camels and credit the tile owner 1 EP.
+- [x] Keep a triggered tile on its space until the leg-boundary return
+      transition.
+- [x] Add focused tests for placement constraints, both movement effects, crazy
+      camels, stack ordering, owner rewards, finish crossings, and tile return.
+
+Acceptance criteria:
+
+- Tile placement and movement are immutable and deterministic.
+- A tile-triggered move preserves complete camel-unit ordering and valid stack
+  levels, including when a booing tile returns a unit to its source space.
+- Tile rules do not enforce current-player turns or perform full leg
+  orchestration.
+- All documented checks pass.
+
+Non-goals:
+
+- Typed actions, legal-action masks, turn progression, emitted events, CLI
+  migration, agents, and RL environments.
+
+#### PR 6b: `feat: add legal actions and masks`
+
+Suggested branch: `feat/legal-actions-masks`
+
+Goal: Define typed player choices and stable legal-action indices without
+applying turns.
+
+Tasks:
+
+- [ ] Add typed actions for rolling, spectator tiles, leg bets, and final bets.
+- [ ] Add `engine.actions` for legal action generation and stable legal action
+      masks.
+- [ ] Add tests for illegal choices and action-mask agreement.
+
+Acceptance criteria:
+
+- `get_legal_actions` and the legal action mask describe the same choices.
+- Equivalent states expose identical ordered actions and masks.
+- Action queries do not mutate state or advance turns.
+
+#### PR 6c: `feat: add deterministic turn progression`
+
+Suggested branch: `feat/turn-progression`
 
 Goal: Compose the completed rules from PR 5c behind one deterministic action
 and turn interface for all future consumers.
 
 Tasks:
 
-- [ ] Add typed actions for rolling, spectator tiles, leg bets, and final bets.
-- [ ] Add `engine.tiles` for tile placement and movement effects.
-- [ ] Add `engine.actions` for legal action generation and stable legal action
-      masks.
 - [ ] Add `engine.turn` for `apply_action`, current-player advancement, leg
       completion, game termination, and emitted events.
 - [ ] Keep action application atomic and expose no partially updated states.
-- [ ] Add tests for illegal actions, action-mask agreement, leg boundaries, and
+- [ ] Add tests for action application, leg boundaries, replay determinism, and
       terminal transitions.
 
 Acceptance criteria:
 
-- `get_legal_actions` and the legal action mask describe the same choices.
 - Replaying the same seed and action sequence produces the same states and
   events.
 - CLI, search, and RL code can share one action application API.
@@ -612,7 +666,7 @@ game state and rule APIs.
 
 Tasks:
 
-- [ ] Represent engine state with dataclasses such as `CamelPosition`,
+- [x] Represent engine state with dataclasses such as `CamelPosition`,
       `BoardState`, `GameState`, `DieRoll`, `SpectatorTile`, and player state.
 - [x] Inject or store `random.Random` instead of using global `random`.
 - [x] Remove printing and user input from engine logic.
@@ -646,8 +700,8 @@ High-priority areas:
 - [x] Moving a camel with camels above it.
 - [x] Crazy camel backward movement.
 - [x] Grey die behavior.
-- [ ] Spectator tile placement constraints.
-- [ ] Spectator tile movement effects.
+- [x] Spectator tile placement constraints.
+- [x] Spectator tile movement effects.
 - [ ] Leg reset behavior.
 - [x] End-of-game detection.
 - [x] Winner and runner-up ordering.

@@ -346,24 +346,3 @@ def test_movement_rejects_incomplete_or_terminal_game() -> None:
     )
     with pytest.raises(ValueError, match="game has ended"):
         move_camel(replace(state, terminal=True), roll)
-
-
-def test_movement_defers_spectator_tile_effects_explicitly() -> None:
-    state = _state_with_stacks(
-        {
-            3: (CamelId.RED,),
-            4: (CamelId.BLUE,),
-            5: (CamelId.GREEN,),
-            6: (CamelId.YELLOW,),
-            7: (CamelId.PURPLE,),
-            10: (CamelId.WHITE,),
-            12: (CamelId.BLACK,),
-        },
-        spectator_tiles=(SpectatorTile(player_id=0, space=8, effect=1),),
-    )
-
-    with pytest.raises(ValueError, match="tile movement effects"):
-        move_camel(
-            state,
-            DieRoll(die=DieId.PURPLE, camel=CamelId.PURPLE, distance=1),
-        )

@@ -78,11 +78,15 @@ state = move_camel(state, roll)
 `setup_game` constructs all seven camel positions atomically. Its ordered
 `setup_rolls` can be used for replay or presentation without exposing partially
 populated engine states. `move_camel` then applies the physical die result as a
-separate immutable transition, preserving carried-stack order and resolving
-the grey die's crazy-camel exceptions. Crossing either finish boundary places
-the moved unit in the corresponding finish zone and returns a terminal state.
-Spectator-tile movement effects are deferred to a later engine milestone;
-`move_camel` currently rejects a move that would require one.
+separate immutable transition, preserving carried-stack order, resolving the
+grey die's crazy-camel exceptions, and applying spectator-tile rewards and
+movement effects. Crossing either finish boundary places the moved unit in the
+corresponding finish zone and returns a terminal state.
+
+Use `place_spectator_tile` to place or move a player's cheering or booing tile.
+Tile placement and movement effects are deterministic rule transitions; turn
+ownership and full leg orchestration remain responsibilities of the future
+action layer.
 
 ## Betting API
 
