@@ -83,11 +83,6 @@ grey die's crazy-camel exceptions, and applying spectator-tile rewards and
 movement effects. Crossing either finish boundary places the moved unit in the
 corresponding finish zone and returns a terminal state.
 
-Use `place_spectator_tile` to place or move a player's cheering or booing tile.
-Tile placement and movement effects are deterministic rule transitions; turn
-ownership and full leg orchestration remain responsibilities of the future
-action layer.
-
 ## Betting API
 
 Use the engine betting API to take the top ticket for a racing camel or place a

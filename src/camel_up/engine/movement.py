@@ -74,26 +74,44 @@ def move_camel(state: GameState, roll: DieRoll) -> GameState:
     else:
         destination = landing_space
 
-    destination_stack = tuple(
-        camel
-        for camel in stack_at(state.board, destination)
-        if camel not in moving_unit
+    board = _place_moving_unit(
+        state.board,
+        moving_unit,
+        source_space=source.space,
+        destination=destination,
+        place_under=place_under,
     )
+    return replace(state, board=board, terminal=crossed_finish)
+
+
+def _place_moving_unit(
+    board: BoardState,
+    moving_unit: tuple[CamelId, ...],
+    *,
+    source_space: int,
+    destination: int,
+    place_under: bool,
+) -> BoardState:
+    """Place a complete camel unit above or below its destination stack.
+
+    A booing tile can return a unit to the space it left. In that case the
+    original destination stack still contains the moving unit, so only the
+    stationary prefix participates in the new stack.
+    """
+    destination_stack = stack_at(board, destination)
+    if destination == source_space:
+        destination_stack = destination_stack[: -len(moving_unit)]
+
     final_stack = (
         (*moving_unit, *destination_stack)
         if place_under
         else (*destination_stack, *moving_unit)
     )
-    positions = list(state.board.camel_positions)
+    positions = list(board.camel_positions)
     for level, camel in enumerate(final_stack):
         camel_index = CAMEL_ORDER.index(camel)
-        positions[camel_index] = CamelPosition(
-            space=destination,
-            level=level,
-        )
-
-    board = replace(state.board, camel_positions=tuple(positions))
-    return replace(state, board=board, terminal=crossed_finish)
+        positions[camel_index] = CamelPosition(space=destination, level=level)
+    return replace(board, camel_positions=tuple(positions))
 
 
 def _resolve_moving_camel(board: BoardState, roll: DieRoll) -> CamelId:

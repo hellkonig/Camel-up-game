@@ -58,6 +58,7 @@ def place_spectator_tile(
         for placed_tile in state.board.spectator_tiles
         if placed_tile.player_id != player_id
     )
+    # Stable player-ID order gives equivalent states identical equality and hashes.
     spectator_tiles = tuple(
         sorted((*other_tiles, tile), key=lambda placed_tile: placed_tile.player_id)
     )
@@ -119,7 +120,10 @@ def apply_spectator_tile_effect(
 
 def _tile_at(board: BoardState, space: int) -> SpectatorTile | None:
     """Return the spectator tile at ``space``, if one is present."""
-    return next((tile for tile in board.spectator_tiles if tile.space == space), None)
+    for tile in board.spectator_tiles:
+        if tile.space == space:
+            return tile
+    return None
 
 
 def _validate_tile_transition(state: GameState, player_id: int) -> None:
