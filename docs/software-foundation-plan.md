@@ -567,12 +567,17 @@ Acceptance criteria:
 - Equivalent states expose identical ordered actions and masks.
 - Action queries do not mutate state or advance turns.
 
+Review focus:
+
+- Action taxonomy, legal-action completeness, stable action indices, and mask
+  agreement.
+
 #### PR 6c: `feat: add deterministic turn progression`
 
 Suggested branch: `feat/turn-progression`
 
-Goal: Compose the completed rules from PR 5c behind one deterministic action
-and turn interface for all future consumers.
+Goal: Compose the stable rules and action contract from PR 6b behind one
+deterministic turn interface for all future consumers.
 
 Tasks:
 
@@ -591,8 +596,8 @@ Acceptance criteria:
 
 Review focus:
 
-- Legal-action completeness, stable action indices, turn boundaries, event
-  design, and deterministic composition of rule modules.
+- Turn boundaries, event design, atomic transitions, and deterministic
+  composition of rule modules.
 
 #### PR 7: `refactor: migrate CLI to engine API`
 
@@ -628,9 +633,10 @@ Review focus:
   imports.
 
 RL observation encoding, environment wrappers, agents, and training code remain
-outside this sequence. Add them only after PR 6 stabilizes the state, action,
-event, and legal-action-mask contracts. PR 7 is deliberately the first consumer
-migration so it does not need to be rewritten around incomplete engine APIs.
+outside this sequence. Add them only after PR 6c stabilizes the state, action,
+event, and legal-action-mask contracts. PR 7 is deliberately the first
+consumer migration so it does not need to be rewritten around incomplete
+engine APIs.
 
 ## Phase 2: Tooling Baseline
 
