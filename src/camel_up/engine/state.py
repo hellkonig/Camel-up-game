@@ -90,8 +90,9 @@ class CamelPosition:
 class SpectatorTile:
     """A placed spectator tile's owner, location, and movement effect.
 
-    This type records canonical tile state. Tile-placement actions, landing
-    effects, owner rewards, and leg resets belong to later rule transitions.
+    This type records canonical tile state. Tile placement and landing effects
+    are implemented by :mod:`camel_up.engine.tiles`; complete leg orchestration
+    belongs to the turn layer.
     """
 
     player_id: int
