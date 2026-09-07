@@ -120,10 +120,7 @@ def apply_spectator_tile_effect(
 
 def _tile_at(board: BoardState, space: int) -> SpectatorTile | None:
     """Return the spectator tile at ``space``, if one is present."""
-    for tile in board.spectator_tiles:
-        if tile.space == space:
-            return tile
-    return None
+    return next((tile for tile in board.spectator_tiles if tile.space == space), None)
 
 
 def _validate_tile_transition(state: GameState, player_id: int) -> None:
