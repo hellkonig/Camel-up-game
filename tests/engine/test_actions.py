@@ -84,6 +84,7 @@ def test_action_space_has_stable_documented_order() -> None:
 
 def test_action_space_scales_with_track_length_and_rejects_invalid_length() -> None:
     assert len(get_action_space(8)) == 30
+    assert PlaceSpectatorTileAction(space=8, effect=1) not in get_action_space(8)
     with pytest.raises(ValueError, match="positive"):
         get_action_space(0)
 
@@ -154,6 +155,8 @@ def test_tile_actions_follow_placement_and_replacement_rules() -> None:
 
     for effect in (1, -1):
         typed_effect = cast(Literal[-1, 1], effect)
+        # Player 0's tile leaves space 4 before its new position is validated,
+        # so the old tile does not make its former neighbor at space 3 illegal.
         assert PlaceSpectatorTileAction(3, typed_effect) in legal_actions
         assert PlaceSpectatorTileAction(4, typed_effect) not in legal_actions
         assert PlaceSpectatorTileAction(6, typed_effect) not in legal_actions

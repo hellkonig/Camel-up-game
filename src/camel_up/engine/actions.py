@@ -5,15 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Literal, TypeAlias
 
-from camel_up.engine.betting import place_final_bet, take_leg_betting_ticket
+from camel_up.engine.betting import available_leg_betting_ticket
 from camel_up.engine.state import (
     RACING_CAMEL_ORDER,
     CamelId,
     FinalBetTarget,
     GameState,
 )
-from camel_up.engine.tiles import place_spectator_tile
+from camel_up.engine.tiles import can_place_spectator_tile
 
+# These orders are part of the stable public action-index contract.
 _SPECTATOR_TILE_EFFECT_ORDER: Final[tuple[Literal[-1, 1], ...]] = (1, -1)
 _FINAL_BET_TARGET_ORDER: Final = (
     FinalBetTarget.WINNER,
@@ -29,12 +30,20 @@ def _validate_racing_camel(camel: CamelId) -> None:
 
 @dataclass(frozen=True, slots=True)
 class RollAction:
-    """Take a pyramid ticket and roll one of the remaining dice."""
+    """Parameter-free choice to take a pyramid ticket and roll a die.
+
+    The random die result belongs to action application, so this value only
+    identifies the player's choice within the action space.
+    """
 
 
 @dataclass(frozen=True, slots=True)
 class PlaceSpectatorTileAction:
-    """Place or move the current player's spectator tile."""
+    """Place or move the current player's spectator tile.
+
+    Track bounds depend on a particular game state and are therefore checked
+    by legal-action generation and action application, not by this value type.
+    """
 
     space: int
     effect: Literal[-1, 1]
@@ -174,27 +183,18 @@ def _is_legal_action(
     player_id: int,
     action: Action,
 ) -> bool:
-    """Check one candidate through the rule transition that would apply it."""
+    """Check one candidate without constructing a replacement state."""
     if isinstance(action, RollAction):
         return True
-
-    try:
-        if isinstance(action, PlaceSpectatorTileAction):
-            place_spectator_tile(
-                state,
-                player_id=player_id,
-                space=action.space,
-                effect=action.effect,
-            )
-        elif isinstance(action, TakeLegBettingTicketAction):
-            take_leg_betting_ticket(state, player_id=player_id, camel=action.camel)
-        else:
-            place_final_bet(
-                state,
-                player_id=player_id,
-                camel=action.camel,
-                target=action.target,
-            )
-    except ValueError:
-        return False
-    return True
+    if isinstance(action, PlaceSpectatorTileAction):
+        return can_place_spectator_tile(
+            state,
+            player_id=player_id,
+            space=action.space,
+            effect=action.effect,
+        )
+    if isinstance(action, TakeLegBettingTicketAction):
+        return available_leg_betting_ticket(state, action.camel) is not None
+    if isinstance(action, PlaceFinalBetAction):
+        return action.camel in state.players[player_id].available_finish_cards
+    raise TypeError(f"unsupported action type: {type(action).__name__}")

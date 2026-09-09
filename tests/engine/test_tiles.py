@@ -1,5 +1,5 @@
 from dataclasses import replace
-from typing import Literal
+from typing import Literal, cast
 
 import pytest
 
@@ -89,6 +89,8 @@ def test_place_and_move_spectator_tile_immutably_in_canonical_order() -> None:
         (0, "track space 1"),
         (2, "space with camels"),
         (4, "adjacent spaces"),
+        (5, "share a space"),
+        (16, "within the track"),
     ],
 )
 def test_tile_placement_enforces_board_constraints(
@@ -101,6 +103,15 @@ def test_tile_placement_enforces_board_constraints(
 
     with pytest.raises(ValueError, match=message):
         place_spectator_tile(state, 0, space, -1)
+
+
+def test_tile_placement_validates_coordinate_and_effect() -> None:
+    state = _spread_state()
+
+    with pytest.raises(ValueError, match="non-negative"):
+        place_spectator_tile(state, 0, -1, 1)
+    with pytest.raises(ValueError, match="-1 or 1"):
+        place_spectator_tile(state, 0, 3, cast(Literal[-1, 1], 0))
 
 
 def test_tile_must_move_to_a_different_space() -> None:
