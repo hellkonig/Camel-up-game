@@ -549,6 +549,8 @@ Non-goals:
 
 #### PR 6b: `feat: add legal actions and masks`
 
+Status: `Done`
+
 Suggested branch: `feat/legal-actions-masks`
 
 Goal: Define typed player choices and stable legal-action indices without
@@ -556,10 +558,12 @@ applying turns.
 
 Tasks:
 
-- [ ] Add typed actions for rolling, spectator tiles, leg bets, and final bets.
-- [ ] Add `engine.actions` for legal action generation and stable legal action
+- [x] Add typed actions for rolling, spectator tiles, leg bets, and final bets.
+- [x] Add `engine.actions` for legal action generation and stable legal action
       masks.
-- [ ] Add tests for illegal choices and action-mask agreement.
+- [x] Expose the complete action space so consumers can map stable indices to
+      typed actions; derive `get_legal_actions` from that space and its mask.
+- [x] Add tests for illegal choices and action-mask agreement.
 
 Acceptance criteria:
 
@@ -571,6 +575,12 @@ Review focus:
 
 - Action taxonomy, legal-action completeness, stable action indices, and mask
   agreement.
+
+Non-goals:
+
+- Action application, randomness, turn advancement, leg reset, scoring,
+  emitted events, CLI migration, agents, observation encoding, and RL
+  environments.
 
 #### PR 6c: `feat: add deterministic turn progression`
 

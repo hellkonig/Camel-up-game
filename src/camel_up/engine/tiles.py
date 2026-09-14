@@ -45,14 +45,14 @@ def place_spectator_tile(
         ValueError: If placement is unavailable or violates a tile rule.
     """
     _validate_tile_transition(state, player_id)
-    existing_tile = next(
-        (tile for tile in state.board.spectator_tiles if tile.player_id == player_id),
-        None,
-    )
-    if existing_tile is not None and existing_tile.space == space:
-        raise ValueError("a spectator tile must move to a different space")
 
     tile = SpectatorTile(player_id=player_id, space=space, effect=effect)
+    if space not in legal_spectator_tile_spaces(state.board, player_id):
+        raise ValueError(
+            "a spectator tile must move to a different space that is on the "
+            "track, empty, not space 1, and not adjacent to another spectator tile"
+        )
+
     other_tiles = tuple(
         placed_tile
         for placed_tile in state.board.spectator_tiles
@@ -64,6 +64,40 @@ def place_spectator_tile(
     )
     board = replace(state.board, spectator_tiles=spectator_tiles)
     return replace(state, board=board)
+
+
+def legal_spectator_tile_spaces(
+    board: BoardState,
+    player_id: int,
+) -> tuple[int, ...]:
+    """Return legal tile destinations in ascending board-coordinate order.
+
+    The owner's existing tile is treated as removed while candidates are
+    checked, although its current space remains unavailable because a tile
+    placement must move it. Cheering and booing have identical placement
+    legality, so the effect is deliberately absent from this query.
+    """
+    existing_tile = next(
+        (tile for tile in board.spectator_tiles if tile.player_id == player_id),
+        None,
+    )
+    other_tile_spaces = {
+        tile.space for tile in board.spectator_tiles if tile.player_id != player_id
+    }
+    blocked_spaces = {
+        position.space
+        for position in board.camel_positions
+        if position.space is not None
+    }
+    blocked_spaces.update(other_tile_spaces)
+    for tile_space in other_tile_spaces:
+        blocked_spaces.update((tile_space - 1, tile_space + 1))
+    if existing_tile is not None:
+        blocked_spaces.add(existing_tile.space)
+
+    return tuple(
+        space for space in range(1, board.track_length) if space not in blocked_spaces
+    )
 
 
 def return_spectator_tiles(state: GameState) -> GameState:
