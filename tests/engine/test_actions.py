@@ -24,6 +24,7 @@ from camel_up.engine import (
     get_legal_action_mask,
     get_legal_actions,
     place_final_bet,
+    place_spectator_tile,
     take_leg_betting_ticket,
 )
 
@@ -162,6 +163,44 @@ def test_tile_actions_follow_placement_and_replacement_rules() -> None:
         assert PlaceSpectatorTileAction(6, typed_effect) not in legal_actions
         assert PlaceSpectatorTileAction(7, typed_effect) not in legal_actions
         assert PlaceSpectatorTileAction(8, typed_effect) not in legal_actions
+
+
+def test_tile_actions_and_transition_agree_for_every_candidate() -> None:
+    state = _active_state(
+        single_stack=True,
+        spectator_tiles=(
+            SpectatorTile(player_id=0, space=4, effect=1),
+            SpectatorTile(player_id=1, space=7, effect=-1),
+        ),
+    )
+    legal_actions = frozenset(get_legal_actions(state, player_id=0))
+    tile_actions = (
+        action
+        for action in get_action_space(state.board.track_length)
+        if isinstance(action, PlaceSpectatorTileAction)
+    )
+
+    for action in tile_actions:
+        if action in legal_actions:
+            updated = place_spectator_tile(
+                state,
+                player_id=0,
+                space=action.space,
+                effect=action.effect,
+            )
+            assert updated.board.spectator_tiles[0] == SpectatorTile(
+                player_id=0,
+                space=action.space,
+                effect=action.effect,
+            )
+        else:
+            with pytest.raises(ValueError):
+                place_spectator_tile(
+                    state,
+                    player_id=0,
+                    space=action.space,
+                    effect=action.effect,
+                )
 
 
 @pytest.mark.parametrize(

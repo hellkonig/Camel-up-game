@@ -86,11 +86,11 @@ def test_place_and_move_spectator_tile_immutably_in_canonical_order() -> None:
 @pytest.mark.parametrize(
     ("space", "message"),
     [
-        (0, "track space 1"),
-        (2, "space with camels"),
-        (4, "adjacent spaces"),
-        (5, "share a space"),
-        (16, "within the track"),
+        (0, "space 1"),
+        (2, "empty"),
+        (4, "adjacent"),
+        (5, "empty"),
+        (16, "on the track"),
     ],
 )
 def test_tile_placement_enforces_board_constraints(

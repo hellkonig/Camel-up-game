@@ -12,7 +12,7 @@ from camel_up.engine.state import (
     FinalBetTarget,
     GameState,
 )
-from camel_up.engine.tiles import can_place_spectator_tile
+from camel_up.engine.tiles import legal_spectator_tile_spaces
 
 # These orders are part of the stable public action-index contract.
 _SPECTATOR_TILE_EFFECT_ORDER: Final[tuple[Literal[-1, 1], ...]] = (1, -1)
@@ -154,7 +154,11 @@ def get_legal_action_mask(
     if player_id != state.current_player or not _accepts_player_action(state):
         return tuple(False for _ in action_space)
 
-    return tuple(_is_legal_action(state, player_id, action) for action in action_space)
+    legal_tile_spaces = frozenset(legal_spectator_tile_spaces(state.board, player_id))
+    return tuple(
+        _is_legal_action(state, player_id, action, legal_tile_spaces)
+        for action in action_space
+    )
 
 
 def get_legal_actions(
@@ -182,17 +186,13 @@ def _is_legal_action(
     state: GameState,
     player_id: int,
     action: Action,
+    legal_tile_spaces: frozenset[int],
 ) -> bool:
     """Check one candidate without constructing a replacement state."""
     if isinstance(action, RollAction):
         return True
     if isinstance(action, PlaceSpectatorTileAction):
-        return can_place_spectator_tile(
-            state,
-            player_id=player_id,
-            space=action.space,
-            effect=action.effect,
-        )
+        return action.space in legal_tile_spaces
     if isinstance(action, TakeLegBettingTicketAction):
         return available_leg_betting_ticket(state, action.camel) is not None
     if isinstance(action, PlaceFinalBetAction):

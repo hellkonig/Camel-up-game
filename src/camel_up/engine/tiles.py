@@ -44,11 +44,15 @@ def place_spectator_tile(
     Raises:
         ValueError: If placement is unavailable or violates a tile rule.
     """
-    error = _spectator_tile_placement_error(state, player_id, space, effect)
-    if error is not None:
-        raise ValueError(error)
+    _validate_tile_transition(state, player_id)
 
     tile = SpectatorTile(player_id=player_id, space=space, effect=effect)
+    if space not in legal_spectator_tile_spaces(state.board, player_id):
+        raise ValueError(
+            "a spectator tile must move to a different space that is on the "
+            "track, empty, not space 1, and not adjacent to another spectator tile"
+        )
+
     other_tiles = tuple(
         placed_tile
         for placed_tile in state.board.spectator_tiles
@@ -62,14 +66,38 @@ def place_spectator_tile(
     return replace(state, board=board)
 
 
-def can_place_spectator_tile(
-    state: GameState,
+def legal_spectator_tile_spaces(
+    board: BoardState,
     player_id: int,
-    space: int,
-    effect: Literal[-1, 1],
-) -> bool:
-    """Return whether a tile placement is legal without creating a new state."""
-    return _spectator_tile_placement_error(state, player_id, space, effect) is None
+) -> tuple[int, ...]:
+    """Return legal tile destinations in ascending board-coordinate order.
+
+    The owner's existing tile is treated as removed while candidates are
+    checked, although its current space remains unavailable because a tile
+    placement must move it. Cheering and booing have identical placement
+    legality, so the effect is deliberately absent from this query.
+    """
+    existing_tile = next(
+        (tile for tile in board.spectator_tiles if tile.player_id == player_id),
+        None,
+    )
+    other_tile_spaces = {
+        tile.space for tile in board.spectator_tiles if tile.player_id != player_id
+    }
+    blocked_spaces = {
+        position.space
+        for position in board.camel_positions
+        if position.space is not None
+    }
+    blocked_spaces.update(other_tile_spaces)
+    for tile_space in other_tile_spaces:
+        blocked_spaces.update((tile_space - 1, tile_space + 1))
+    if existing_tile is not None:
+        blocked_spaces.add(existing_tile.space)
+
+    return tuple(
+        space for space in range(1, board.track_length) if space not in blocked_spaces
+    )
 
 
 def return_spectator_tiles(state: GameState) -> GameState:
@@ -129,47 +157,16 @@ def _tile_at(board: BoardState, space: int) -> SpectatorTile | None:
     return next((tile for tile in board.spectator_tiles if tile.space == space), None)
 
 
-def _spectator_tile_placement_error(
-    state: GameState,
-    player_id: int,
-    space: int,
-    effect: Literal[-1, 1],
-) -> str | None:
-    """Return the first placement error shared by queries and transitions."""
+def _validate_tile_transition(state: GameState, player_id: int) -> None:
+    """Reject states and player identities that cannot place a tile."""
     if not 0 <= player_id < len(state.players):
-        return f"player_id {player_id} must identify a player in players"
+        raise ValueError(f"player_id {player_id} must identify a player in players")
     if not all(position.is_placed for position in state.board.camel_positions):
-        return "initial setup must be completed before placing a tile"
+        raise ValueError("initial setup must be completed before placing a tile")
     if state.terminal:
-        return "cannot place a spectator tile after the game has ended"
+        raise ValueError("cannot place a spectator tile after the game has ended")
     if len(state.remaining_dice) <= 1:
-        return "the leg is complete; settle it before placing a tile"
-
-    existing_tile = next(
-        (tile for tile in state.board.spectator_tiles if tile.player_id == player_id),
-        None,
-    )
-    if existing_tile is not None and existing_tile.space == space:
-        return "a spectator tile must move to a different space"
-    if space < 0:
-        return "spectator tile space must be non-negative"
-    if effect not in (-1, 1):
-        return "spectator tile effect must be -1 or 1"
-
-    other_tiles = tuple(
-        tile for tile in state.board.spectator_tiles if tile.player_id != player_id
-    )
-    if any(tile.space == space for tile in other_tiles):
-        return "spectator tiles cannot share a space"
-    if space >= state.board.track_length:
-        return "spectator tile space must be within the track"
-    if space == 0:
-        return "spectator tiles cannot be placed on track space 1"
-    if any(position.space == space for position in state.board.camel_positions):
-        return "spectator tiles cannot share a space with camels"
-    if any(abs(tile.space - space) == 1 for tile in other_tiles):
-        return "spectator tiles cannot be on adjacent spaces"
-    return None
+        raise ValueError("the leg is complete; settle it before placing a tile")
 
 
 def _replace_player(
