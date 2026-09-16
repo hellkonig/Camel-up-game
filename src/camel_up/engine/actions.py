@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Literal, TypeAlias
 
-from camel_up.engine.betting import available_leg_betting_ticket
+from camel_up.engine.betting import (
+    legal_final_betting_camels,
+    legal_leg_betting_camels,
+)
+from camel_up.engine.dice import can_roll_die
 from camel_up.engine.state import (
     RACING_CAMEL_ORDER,
     CamelId,
@@ -151,12 +155,20 @@ def get_legal_action_mask(
         raise ValueError(f"player_id {player_id} must identify a player in players")
 
     action_space = get_action_space(state.board.track_length)
-    if player_id != state.current_player or not _accepts_player_action(state):
+    if player_id != state.current_player:
         return tuple(False for _ in action_space)
 
-    legal_tile_spaces = frozenset(legal_spectator_tile_spaces(state.board, player_id))
+    leg_betting_camels = frozenset(legal_leg_betting_camels(state, player_id))
+    tile_spaces = frozenset(legal_spectator_tile_spaces(state, player_id))
+    final_betting_camels = frozenset(legal_final_betting_camels(state, player_id))
     return tuple(
-        _is_legal_action(state, player_id, action, legal_tile_spaces)
+        _is_legal_action(
+            state,
+            action,
+            leg_betting_camels,
+            tile_spaces,
+            final_betting_camels,
+        )
         for action in action_space
     )
 
@@ -173,28 +185,20 @@ def get_legal_actions(
     )
 
 
-def _accepts_player_action(state: GameState) -> bool:
-    """Return whether the state is at an active player-choice boundary."""
-    return (
-        all(position.is_placed for position in state.board.camel_positions)
-        and not state.terminal
-        and len(state.remaining_dice) > 1
-    )
-
-
 def _is_legal_action(
     state: GameState,
-    player_id: int,
     action: Action,
-    legal_tile_spaces: frozenset[int],
+    leg_betting_camels: frozenset[CamelId],
+    tile_spaces: frozenset[int],
+    final_betting_camels: frozenset[CamelId],
 ) -> bool:
-    """Check one candidate without constructing a replacement state."""
+    """Match one candidate against rule-owned legality queries."""
     if isinstance(action, RollAction):
-        return True
+        return can_roll_die(state)
     if isinstance(action, PlaceSpectatorTileAction):
-        return action.space in legal_tile_spaces
+        return action.space in tile_spaces
     if isinstance(action, TakeLegBettingTicketAction):
-        return available_leg_betting_ticket(state, action.camel) is not None
+        return action.camel in leg_betting_camels
     if isinstance(action, PlaceFinalBetAction):
-        return action.camel in state.players[player_id].available_finish_cards
+        return action.camel in final_betting_camels
     raise TypeError(f"unsupported action type: {type(action).__name__}")

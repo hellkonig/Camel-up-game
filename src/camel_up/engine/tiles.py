@@ -11,6 +11,7 @@ from camel_up.engine.state import (
     GameState,
     PlayerState,
     SpectatorTile,
+    is_active_leg,
 )
 
 _CRAZY_CAMELS = (CamelId.WHITE, CamelId.BLACK)
@@ -47,7 +48,7 @@ def place_spectator_tile(
     _validate_tile_transition(state, player_id)
 
     tile = SpectatorTile(player_id=player_id, space=space, effect=effect)
-    if space not in legal_spectator_tile_spaces(state.board, player_id):
+    if space not in legal_spectator_tile_spaces(state, player_id):
         raise ValueError(
             "a spectator tile must move to a different space that is on the "
             "track, empty, not space 1, and not adjacent to another spectator tile"
@@ -67,7 +68,7 @@ def place_spectator_tile(
 
 
 def legal_spectator_tile_spaces(
-    board: BoardState,
+    state: GameState,
     player_id: int,
 ) -> tuple[int, ...]:
     """Return legal tile destinations in ascending board-coordinate order.
@@ -77,16 +78,21 @@ def legal_spectator_tile_spaces(
     placement must move it. Cheering and booing have identical placement
     legality, so the effect is deliberately absent from this query.
     """
+    if not 0 <= player_id < len(state.players) or not is_active_leg(state):
+        return ()
+
     existing_tile = next(
-        (tile for tile in board.spectator_tiles if tile.player_id == player_id),
+        (tile for tile in state.board.spectator_tiles if tile.player_id == player_id),
         None,
     )
     other_tile_spaces = {
-        tile.space for tile in board.spectator_tiles if tile.player_id != player_id
+        tile.space
+        for tile in state.board.spectator_tiles
+        if tile.player_id != player_id
     }
     blocked_spaces = {
         position.space
-        for position in board.camel_positions
+        for position in state.board.camel_positions
         if position.space is not None
     }
     blocked_spaces.update(other_tile_spaces)
@@ -96,7 +102,9 @@ def legal_spectator_tile_spaces(
         blocked_spaces.add(existing_tile.space)
 
     return tuple(
-        space for space in range(1, board.track_length) if space not in blocked_spaces
+        space
+        for space in range(1, state.board.track_length)
+        if space not in blocked_spaces
     )
 
 
@@ -161,11 +169,11 @@ def _validate_tile_transition(state: GameState, player_id: int) -> None:
     """Reject states and player identities that cannot place a tile."""
     if not 0 <= player_id < len(state.players):
         raise ValueError(f"player_id {player_id} must identify a player in players")
-    if not all(position.is_placed for position in state.board.camel_positions):
-        raise ValueError("initial setup must be completed before placing a tile")
-    if state.terminal:
-        raise ValueError("cannot place a spectator tile after the game has ended")
-    if len(state.remaining_dice) <= 1:
+    if not is_active_leg(state):
+        if not all(position.is_placed for position in state.board.camel_positions):
+            raise ValueError("initial setup must be completed before placing a tile")
+        if state.terminal:
+            raise ValueError("cannot place a spectator tile after the game has ended")
         raise ValueError("the leg is complete; settle it before placing a tile")
 
 

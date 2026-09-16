@@ -15,6 +15,7 @@ from camel_up.engine.state import (
     CamelPosition,
     DieId,
     GameState,
+    is_active_leg,
 )
 
 _RACING_DICE: Final = DIE_ORDER[:-1]
@@ -86,6 +87,11 @@ class SetupRoll:
             raise ValueError("racing setup roll must place its matching camel")
 
 
+def can_roll_die(state: GameState) -> bool:
+    """Return whether the state permits the roll action."""
+    return is_active_leg(state)
+
+
 def roll_die(state: GameState, rng: random.Random) -> tuple[GameState, DieRoll]:
     """Roll one available die and remove it from the leg inventory.
 
@@ -101,11 +107,11 @@ def roll_die(state: GameState, rng: random.Random) -> tuple[GameState, DieRoll]:
     Returns:
         A tuple containing the replacement game state and physical die result.
     """
-    if not all(position.is_placed for position in state.board.camel_positions):
-        raise ValueError("initial setup must be completed before rolling")
-    if state.terminal:
-        raise ValueError("cannot roll dice after the game has ended")
-    if len(state.remaining_dice) <= 1:
+    if not can_roll_die(state):
+        if not all(position.is_placed for position in state.board.camel_positions):
+            raise ValueError("initial setup must be completed before rolling")
+        if state.terminal:
+            raise ValueError("cannot roll dice after the game has ended")
         raise ValueError("the leg is complete; reset dice before rolling again")
 
     die = rng.choice(state.remaining_dice)
