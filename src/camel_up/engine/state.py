@@ -474,6 +474,15 @@ def position_of(board: BoardState, camel: CamelId) -> CamelPosition:
     return board.camel_positions[_CAMEL_INDEX[camel]]
 
 
+def is_active_leg(state: GameState) -> bool:
+    """Return whether rule actions are available during the current leg."""
+    return (
+        all(position.is_placed for position in state.board.camel_positions)
+        and not state.terminal
+        and len(state.remaining_dice) > 1
+    )
+
+
 def stack_at(board: BoardState, space: int) -> tuple[CamelId, ...]:
     """Return the stack at ``space`` ordered from bottom to top."""
     if not -1 <= space <= board.track_length:

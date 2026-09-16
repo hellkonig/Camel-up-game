@@ -582,6 +582,37 @@ Non-goals:
   emitted events, CLI migration, agents, observation encoding, and RL
   environments.
 
+#### PR 6b.1: `refactor: centralize action legality`
+
+Status: `Done`
+
+Suggested branch: `chore/centralize-action-legality`
+
+Goal: Give legal-action masks and low-level rule transitions one shared source
+of truth for action availability.
+
+Tasks:
+
+- [x] Add one shared predicate for active-leg player actions.
+- [x] Keep rule-specific legality queries with their owning dice, betting, and
+      spectator-tile modules.
+- [x] Build the legal-action mask from those queries and use the same queries
+      to guard low-level transitions.
+- [x] Add agreement tests covering every action type.
+
+Acceptance criteria:
+
+- A rule transition accepts exactly the rule-valid choices exposed by its
+  legality query.
+- Action masks compose rule-owned queries without duplicating their rules.
+- Existing transition errors and stable action indices remain unchanged.
+- All documented checks pass.
+
+Non-goals:
+
+- Public API additions, current-player enforcement in low-level rule modules,
+  action application, turn advancement, leg settlement, and emitted events.
+
 #### PR 6c: `feat: add deterministic turn progression`
 
 Suggested branch: `feat/turn-progression`

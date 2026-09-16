@@ -1,3 +1,4 @@
+import random
 from dataclasses import replace
 from typing import Literal, cast
 
@@ -25,6 +26,7 @@ from camel_up.engine import (
     get_legal_actions,
     place_final_bet,
     place_spectator_tile,
+    roll_die,
     take_leg_betting_ticket,
 )
 
@@ -143,6 +145,35 @@ def test_unavailable_betting_assets_are_not_legal_actions() -> None:
     )
 
 
+def test_betting_actions_and_transitions_agree_for_every_candidate() -> None:
+    state = _active_state()
+    for _ in range(4):
+        state = take_leg_betting_ticket(state, player_id=0, camel=CamelId.RED)
+    state = place_final_bet(
+        state,
+        player_id=0,
+        camel=CamelId.BLUE,
+        target=FinalBetTarget.WINNER,
+    )
+    legal_actions = frozenset(get_legal_actions(state, player_id=0))
+
+    for camel in RACING_CAMEL_ORDER:
+        leg_bet = TakeLegBettingTicketAction(camel)
+        if leg_bet in legal_actions:
+            take_leg_betting_ticket(state, player_id=0, camel=camel)
+        else:
+            with pytest.raises(ValueError):
+                take_leg_betting_ticket(state, player_id=0, camel=camel)
+
+        for target in FinalBetTarget:
+            final_bet = PlaceFinalBetAction(camel, target)
+            if final_bet in legal_actions:
+                place_final_bet(state, player_id=0, camel=camel, target=target)
+            else:
+                with pytest.raises(ValueError):
+                    place_final_bet(state, player_id=0, camel=camel, target=target)
+
+
 def test_tile_actions_follow_placement_and_replacement_rules() -> None:
     state = _active_state(
         single_stack=True,
@@ -201,6 +232,25 @@ def test_tile_actions_and_transition_agree_for_every_candidate() -> None:
                     space=action.space,
                     effect=action.effect,
                 )
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        _active_state(),
+        GameState.pre_setup(),
+        replace(_active_state(), remaining_dice=(DieId.GREY,)),
+        replace(_active_state(), terminal=True),
+    ],
+)
+def test_roll_action_and_transition_agree(state: GameState) -> None:
+    is_legal = RollAction() in get_legal_actions(state, player_id=0)
+
+    if is_legal:
+        roll_die(state, random.Random(0))
+    else:
+        with pytest.raises(ValueError):
+            roll_die(state, random.Random(0))
 
 
 @pytest.mark.parametrize(
