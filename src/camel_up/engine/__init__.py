@@ -1,5 +1,15 @@
 """Stable public types and queries for the Camel Up engine."""
 
+from camel_up.engine.actions import (
+    Action,
+    PlaceFinalBetAction,
+    PlaceSpectatorTileAction,
+    RollAction,
+    TakeLegBettingTicketAction,
+    get_action_space,
+    get_legal_action_mask,
+    get_legal_actions,
+)
 from camel_up.engine.betting import (
     available_leg_betting_ticket,
     place_final_bet,
@@ -45,6 +55,7 @@ __all__ = [
     "MAX_PLAYERS",
     "MIN_PLAYERS",
     "RACING_CAMEL_ORDER",
+    "Action",
     "BoardState",
     "CamelId",
     "CamelPosition",
@@ -54,11 +65,18 @@ __all__ = [
     "FinalBetTarget",
     "GameState",
     "LegBettingTicket",
+    "PlaceFinalBetAction",
+    "PlaceSpectatorTileAction",
     "PlayerState",
+    "RollAction",
     "SpectatorTile",
     "SetupRoll",
+    "TakeLegBettingTicketAction",
     "available_leg_betting_ticket",
     "carried_camels",
+    "get_action_space",
+    "get_legal_action_mask",
+    "get_legal_actions",
     "move_camel",
     "position_of",
     "place_final_bet",
