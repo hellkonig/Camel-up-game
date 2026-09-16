@@ -721,7 +721,7 @@ High-priority areas:
 - [ ] Leg reset behavior.
 - [x] End-of-game detection.
 - [x] Winner and runner-up ordering.
-- [ ] Legal actions and legal action masks.
+- [x] Legal actions and legal action masks.
 - [x] Determinism with fixed seeds.
 
 Acceptance criteria:

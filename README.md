@@ -118,7 +118,8 @@ records.
 ## Agent Compatibility
 
 `GameState` is immutable, deterministic engine state shared by CLI, search, and
-RL consumers. Future environment adapters can encode player-relative NumPy
-observations and legal-action masks while hiding private opponent information.
-Display names and human or agent controller selection remain outside the rule
-engine, keyed by stable player IDs.
+RL consumers. The engine action space and legal-action mask are ready for those
+consumers; future environment adapters can combine them with player-relative
+observations that hide private opponent information. Display names and human or
+agent controller selection remain outside the rule engine, keyed by stable
+player IDs.
